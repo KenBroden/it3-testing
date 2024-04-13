@@ -79,6 +79,7 @@ public class TeamControllerSpec {
   private ObjectId huntId;
   private ObjectId taskId;
   private ObjectId startedHuntId;
+  private ObjectId teamId;
 
   private static MongoClient mongoClient;
   private static MongoDatabase db;
@@ -226,6 +227,31 @@ public class TeamControllerSpec {
     taskDocuments.insertMany(testTasks);
     taskDocuments.insertOne(task);
 
+    MongoCollection<Document> teamDocuments = db.getCollection("teams");
+    teamDocuments.drop();
+    List<Document> testTeams = new ArrayList<>();
+    testTeams.add(
+        new Document()
+            .append("teamName", "Team 1")
+            .append("teamMembers", new ArrayList<String>()));
+    testTeams.add(
+        new Document()
+            .append("teamName", "Team 2")
+            .append("teamMembers", new ArrayList<String>()));
+    testTeams.add(
+        new Document()
+            .append("teamName", "Team 3")
+            .append("teamMembers", new ArrayList<String>()));
+
+    teamId = new ObjectId();
+    Document team = new Document()
+        .append("_id", teamId)
+        .append("teamName", "Team 4")
+        .append("teamMembers", new ArrayList<String>());
+
+    teamDocuments.insertMany(testTeams);
+    teamDocuments.insertOne(team);
+
     MongoCollection<Document> startedHuntsDocuments = db.getCollection("startedHunts");
     startedHuntsDocuments.drop();
     List<Document> startedHunts = new ArrayList<>();
@@ -239,7 +265,8 @@ public class TeamControllerSpec {
                 .append("hunt", testHunts.get(0))
                 .append("tasks", testTasks.subList(0, 2)))
             .append("status", true)
-            .append("endDate", null));
+            .append("endDate", null)
+            .append("teams", testTeams.subList(0, 2)));
 
     startedHunts.add(
         new Document()
@@ -248,7 +275,8 @@ public class TeamControllerSpec {
                 .append("hunt", testHunts.get(1))
                 .append("tasks", testTasks.subList(2, 3)))
             .append("status", false)
-            .append("endDate", date));
+            .append("endDate", date)
+            .append("teams", testTeams.subList(2, 3)));
 
     startedHunts.add(
         new Document()
@@ -257,7 +285,8 @@ public class TeamControllerSpec {
                 .append("hunt", testHunts.get(2))
                 .append("tasks", testTasks.subList(0, 3)))
             .append("status", true)
-            .append("endDate", null));
+            .append("endDate", null)
+            .append("teams", testTeams.subList(0, 3)));
 
     startedHuntId = new ObjectId();
     Document startedHunt = new Document()
@@ -267,7 +296,8 @@ public class TeamControllerSpec {
             .append("hunt", testHunts.get(2))
             .append("tasks", testTasks.subList(0, 3)))
         .append("status", true)
-        .append("endDate", null);
+        .append("endDate", null)
+        .append("teams", testTeams.subList(0, 3));
 
     startedHuntsDocuments.insertMany(startedHunts);
     startedHuntsDocuments.insertOne(startedHunt);
