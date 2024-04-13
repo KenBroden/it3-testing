@@ -2,32 +2,20 @@ package umm3601.team;
 
 import static com.mongodb.client.model.Filters.eq;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Date;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,16 +43,13 @@ import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.http.NotFoundResponse;
-import io.javalin.http.UploadedFile;
 import io.javalin.json.JavalinJackson;
 import io.javalin.validation.BodyValidator;
 import io.javalin.validation.ValidationException;
-import io.javalin.validation.Validator;
 
 import umm3601.host.CompleteHunt;
 import umm3601.host.EndedHunt;
 import umm3601.host.Host;
-import umm3601.host.HostController;
 import umm3601.host.Hunt;
 import umm3601.host.StartedHunt;
 import umm3601.host.Task;
@@ -74,7 +59,6 @@ import umm3601.host.TeamController;
 @SuppressWarnings({ "MagicNumber" })
 public class TeamControllerSpec {
   private TeamController teamController;
-  private HostController hostController;
   private ObjectId frysId;
   private ObjectId huntId;
   private ObjectId taskId;
@@ -305,7 +289,6 @@ public class TeamControllerSpec {
     startedHuntsDocuments.insertMany(startedHunts);
     startedHuntsDocuments.insertOne(startedHunt);
 
-    hostController = new HostController(db);
     teamController = new TeamController(db);
   }
 
