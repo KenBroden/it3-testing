@@ -18,4 +18,5 @@ public class StartedHunt {
   public Boolean status;
   public Date endDate;
   public List<Team> teams;
+
 }

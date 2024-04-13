@@ -51,6 +51,8 @@ public class HostController implements Controller {
   private static final String API_DELETE_HUNT = "/api/endedHunts/{id}";
   private static final String API_PHOTO_UPLOAD = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo";
   private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}";
+  private static final String API_ADD_TEAMS = "/api/startedHunt/{id}/addTeams";
+  private static final String API_REMOVE_TEAM = "/api/startedHunt/{id}/removeTeam/{teamId}";
 
   static final String HOST_KEY = "hostId";
   static final String HUNT_KEY = "huntId";
@@ -480,8 +482,23 @@ public class HostController implements Controller {
     ctx.status(HttpStatus.OK);
   }
 
-  public StartedHunt getStartedHuntById(Context ctx) {
-    String id = ctx.pathParam("id");
+  // public StartedHunt getStartedHuntById(Context ctx) {
+  //   String id = ctx.pathParam("id");
+  //   StartedHunt startedHunt;
+
+  //   try {
+  //     startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(id))).first();
+  //   } catch (IllegalArgumentException e) {
+  //     throw new BadRequestResponse("The requested started hunt id wasn't a legal Mongo Object ID.");
+  //   }
+  //   if (startedHunt == null) {
+  //     throw new NotFoundResponse("The requested started hunt was not found");
+  //   } else {
+  //     return startedHunt;
+  //   }
+  // }
+
+  public StartedHunt getStartedHuntById(String id) {
     StartedHunt startedHunt;
 
     try {
@@ -494,6 +511,11 @@ public class HostController implements Controller {
     } else {
       return startedHunt;
     }
+  }
+
+  public StartedHunt getStartedHuntById(Context ctx) {
+    String id = ctx.pathParam("id");
+    return getStartedHuntById(id);
   }
 
   public List<FinishedTask> getFinishedTasks(List<Task> tasks) {
@@ -525,6 +547,43 @@ public class HostController implements Controller {
     return encodedPhotos;
   }
 
+  //Create and add the given number of teams to the started hunt
+  //The host will be prompted to select the number of teams to add
+  public void addTeamsToStartedHunt(Context ctx) {
+    String id = ctx.pathParam("id");
+    StartedHunt startedHunt = getStartedHuntById(id);
+
+    int numTeams = ctx.bodyAsClass(Integer.class);
+    for (int i = 0; i < numTeams; i++) {
+      Team team = new Team();
+      team.teamName = "Team " + (i + 1);
+      team.teamMembers = new ArrayList<>();
+      startedHunt.teams.add(team);
+    }
+    startedHuntCollection.save(startedHunt);
+    ctx.status(HttpStatus.OK);
+  }
+
+// Remove a single team from the started hunt
+public void removeTeamFromStartedHunt(Context ctx) {
+  String id = ctx.pathParam("id");
+  StartedHunt startedHunt = getStartedHuntById(id);
+
+  String teamIdString = ctx.pathParam("teamId");
+  ObjectId teamId = new ObjectId(teamIdString);
+
+  Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
+  if (team == null) {
+    ctx.status(HttpStatus.NOT_FOUND);
+    throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
+  }
+
+  startedHunt.teams.remove(team);
+  startedHuntCollection.save(startedHunt);
+  ctx.status(HttpStatus.OK);
+}
+
+
   @Override
   public void addRoutes(Javalin server) {
     server.get(API_HOST, this::getHunts);
@@ -542,5 +601,7 @@ public class HostController implements Controller {
     server.get(API_ENDED_HUNT, this::getEndedHunt);
     server.get(API_ENDED_HUNTS, this::getEndedHunts);
     server.delete(API_DELETE_HUNT, this::deleteStartedHunt);
+    server.post(API_ADD_TEAMS, this::addTeamsToStartedHunt);
+    server.delete(API_REMOVE_TEAM, this::removeTeamFromStartedHunt);
   }
 }
