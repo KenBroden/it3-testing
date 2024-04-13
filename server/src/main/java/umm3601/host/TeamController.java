@@ -22,6 +22,9 @@ import static com.mongodb.client.model.Filters.eq;
 
 public class TeamController implements Controller {
 
+  private static final String API_NICKNAME = "api/hunters/{hunterName}";
+  private static final String API_TEAMS = "api/hunters/{hunterName}/teams";
+
   private final JacksonMongoCollection<Team> teamCollection;
 
   public TeamController(MongoDatabase database) {
@@ -100,9 +103,36 @@ public class TeamController implements Controller {
     ctx.status(HttpStatus.OK);
   }
 
+  public void leaveTeam(Context ctx) {
+    String id = ctx.pathParam("id");
+    String hunterName = ctx.queryParam("name");
+
+    if (hunterName == null || hunterName.isEmpty()) {
+      throw new BadRequestResponse("Hunter name is required");
+    }
+
+    Team team = teamCollection.find(eq("_id", new ObjectId(id))).first();
+    if (team == null) {
+      throw new NotFoundResponse("The requested team was not found");
+    }
+
+    // Remove the hunter from the team
+    team.removeMember(hunterName);
+
+    // Update the team in the database
+    teamCollection.findOneAndReplace(eq("_id", team._id), team);
+
+    ctx.status(HttpStatus.OK);
+  }
+
   @Override
   public void addRoutes(Javalin server) {
-    // TODO Auto-generated method stub
+    server.post(API_TEAMS, this::createTeam);
+    server.get(API_TEAMS, this::getTeams);
+    server.get(API_NICKNAME, this::getTeam);
+    server.delete(API_NICKNAME, this::deleteTeam);
+    server.post(API_NICKNAME + "/join", this::joinTeam);
+    server.post(API_NICKNAME + "/leave", this::leaveTeam);
     throw new UnsupportedOperationException("Unimplemented method 'addRoutes'");
   }
 

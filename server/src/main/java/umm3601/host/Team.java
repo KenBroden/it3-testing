@@ -15,4 +15,8 @@ public class Team {
     this.teamMembers.add(hunterName);
   }
 
+  public void removeMember(String hunterName) {
+    this.teamMembers.remove(hunterName);
+  }
+
 }
