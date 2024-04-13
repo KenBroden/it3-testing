@@ -120,6 +120,16 @@ public class TeamControllerSpec {
   void setupEach() throws IOException {
     MockitoAnnotations.openMocks(this);
 
+    setupHosts();
+    setupHunts();
+    setupTasks();
+    setupTeams();
+    setupStartedHunts();
+
+    teamController = new TeamController(db);
+  }
+
+void setupHosts() {
     MongoCollection<Document> hostDocuments = db.getCollection("hosts");
     hostDocuments.drop();
     frysId = new ObjectId();
@@ -130,10 +140,13 @@ public class TeamControllerSpec {
         .append("email", "fry@email");
 
     hostDocuments.insertOne(fry);
+}
 
+private List<Document> testHunts;
+void setupHunts() {
     MongoCollection<Document> huntDocuments = db.getCollection("hunts");
     huntDocuments.drop();
-    List<Document> testHunts = new ArrayList<>();
+    testHunts = new ArrayList<>();
     testHunts.add(
         new Document()
             .append("hostId", "frysId")
@@ -174,10 +187,13 @@ public class TeamControllerSpec {
 
     huntDocuments.insertMany(testHunts);
     huntDocuments.insertOne(hunt);
+}
 
+private List<Document> testTasks;
+void setupTasks() {
     MongoCollection<Document> taskDocuments = db.getCollection("tasks");
     taskDocuments.drop();
-    List<Document> testTasks = new ArrayList<>();
+    testTasks = new ArrayList<>();
     testTasks.add(
         new Document()
             .append("huntId", huntId.toHexString())
@@ -213,10 +229,13 @@ public class TeamControllerSpec {
 
     taskDocuments.insertMany(testTasks);
     taskDocuments.insertOne(task);
+}
 
+private List<Document> testTeams;
+void setupTeams() {
     MongoCollection<Document> teamDocuments = db.getCollection("teams");
     teamDocuments.drop();
-    List<Document> testTeams = new ArrayList<>();
+    testTeams = new ArrayList<>();
     testTeams.add(
         new Document()
             .append("teamName", "Team 1")
@@ -238,7 +257,9 @@ public class TeamControllerSpec {
 
     teamDocuments.insertMany(testTeams);
     teamDocuments.insertOne(team);
+}
 
+void setupStartedHunts() {
     MongoCollection<Document> startedHuntsDocuments = db.getCollection("startedHunts");
     startedHuntsDocuments.drop();
     List<Document> startedHunts = new ArrayList<>();
