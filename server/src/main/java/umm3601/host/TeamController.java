@@ -70,13 +70,18 @@ public class TeamController implements Controller {
 
   public void deleteTeam(Context ctx) {
     String id = ctx.pathParam("id");
-    DeleteResult teamDeleteResult = teamCollection.deleteOne(eq("_id", new ObjectId(id)));
-    if (teamDeleteResult.getDeletedCount() != 1) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new NotFoundResponse(
-          "Was unable to delete team with id: "
-              + id
-              + "; perhaps its an illegal id, or the id is not in the database.");
+    try {
+      DeleteResult teamDeleteResult = teamCollection.deleteOne(eq("_id", new ObjectId(id)));
+      if (teamDeleteResult.getDeletedCount() != 1) {
+        ctx.status(HttpStatus.NOT_FOUND);
+        throw new NotFoundResponse(
+            "Was unable to delete team with id: "
+                + id
+                + "; perhaps its an illegal id, or the id is not in the database.");
+      }
+    } catch (IllegalArgumentException e) {
+      ctx.status(HttpStatus.BAD_REQUEST);
+      throw new BadRequestResponse("The requested team id wasn't a legal Mongo Object ID.");
     }
     ctx.status(HttpStatus.OK);
   }
@@ -89,7 +94,13 @@ public class TeamController implements Controller {
       throw new BadRequestResponse("Hunter name is required");
     }
 
-    Team team = teamCollection.find(eq("_id", new ObjectId(id))).first();
+    Team team;
+    try {
+      team = teamCollection.find(eq("_id", new ObjectId(id))).first();
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestResponse("The requested team id wasn't a legal Mongo Object ID.");
+    }
+
     if (team == null) {
       throw new NotFoundResponse("The requested team was not found");
     }
@@ -111,7 +122,13 @@ public class TeamController implements Controller {
       throw new BadRequestResponse("Hunter name is required");
     }
 
-    Team team = teamCollection.find(eq("_id", new ObjectId(id))).first();
+    Team team;
+    try {
+      team = teamCollection.find(eq("_id", new ObjectId(id))).first();
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestResponse("The requested team id wasn't a legal Mongo Object ID.");
+    }
+
     if (team == null) {
       throw new NotFoundResponse("The requested team was not found");
     }
@@ -133,7 +150,6 @@ public class TeamController implements Controller {
     server.delete(API_NICKNAME, this::deleteTeam);
     server.post(API_NICKNAME + "/join", this::joinTeam);
     server.post(API_NICKNAME + "/leave", this::leaveTeam);
-    throw new UnsupportedOperationException("Unimplemented method 'addRoutes'");
   }
 
 }
