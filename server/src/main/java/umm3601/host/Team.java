@@ -10,4 +10,9 @@ public class Team {
   public String _id;
   public String teamName;
   public List<String> teamMembers;
+
+  public void addMember(String hunterName) {
+    this.teamMembers.add(hunterName);
+  }
+
 }

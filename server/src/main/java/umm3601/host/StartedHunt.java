@@ -1,6 +1,7 @@
 package umm3601.host;
 
 import java.util.Date;
+import java.util.List;
 
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
@@ -16,4 +17,5 @@ public class StartedHunt {
   public CompleteHunt completeHunt;
   public Boolean status;
   public Date endDate;
+  public List<Team> teams;
 }

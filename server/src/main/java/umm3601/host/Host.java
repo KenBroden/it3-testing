@@ -1,5 +1,7 @@
 package umm3601.host;
 
+import java.util.List;
+
 import org.mongojack.Id;
 import org.mongojack.ObjectId;
 
@@ -13,5 +15,6 @@ public class Host {
     public String name;
     public String userName;
     public String email;
+    public List<Team> teams;
 
 }
