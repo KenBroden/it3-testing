@@ -91,6 +91,6 @@ export class HostService {
 
   // This takes in a integer from the host and adds that amount of empty teams to the startedHunt
   addTeams(startedHuntId: string, numTeams: number): Observable<void> {
-    return this.httpClient.post<void>(`${this.startedHuntUrl}/${startedHuntId}/addTeams/${numTeams}`, null);
+    return this.httpClient.post<void>(`/api/startedHunt/${startedHuntId}/addTeams`, numTeams);
   }
 }
