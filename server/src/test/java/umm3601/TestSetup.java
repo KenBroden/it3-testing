@@ -39,24 +39,25 @@ import umm3601.host.Task;
 import umm3601.host.Team;
 import umm3601.host.TeamController;
 
+@SuppressWarnings({ "MagicNumber", "unused" })
 public class TestSetup {
-  protected TeamController teamController;
-  protected HostController hostController;
-  protected ObjectId frysId;
-  protected ObjectId huntId;
-  protected ObjectId taskId;
-  protected ObjectId startedHuntId;
-  protected ObjectId teamId;
+  private TeamController teamController;
+  private HostController hostController;
+  private ObjectId frysId;
+  private ObjectId huntId;
+  private ObjectId taskId;
+  private ObjectId startedHuntId;
+  private ObjectId teamId;
 
-  protected static MongoClient mongoClient;
-  protected static MongoDatabase db;
-  protected static JavalinJackson javalinJackson = new JavalinJackson();
+  private static MongoClient mongoClient;
+  private static MongoDatabase db;
+  private static JavalinJackson javalinJackson = new JavalinJackson();
 
   @Mock
-  protected Context ctx;
+  private Context ctx;
 
   @Captor
-  protected ArgumentCaptor<ArrayList<Hunt>> huntArrayListCaptor;
+  private ArgumentCaptor<ArrayList<Hunt>> huntArrayListCaptor;
 
   @Captor
   private ArgumentCaptor<ArrayList<Task>> taskArrayListCaptor;
@@ -68,7 +69,7 @@ public class TestSetup {
   private ArgumentCaptor<CompleteHunt> completeHuntCaptor;
 
   @Captor
-  protected ArgumentCaptor<StartedHunt> startedHuntCaptor;
+  private ArgumentCaptor<StartedHunt> startedHuntCaptor;
 
   @Captor
   private ArgumentCaptor<ArrayList<StartedHunt>> startedHuntArrayListCaptor;
@@ -77,7 +78,7 @@ public class TestSetup {
   private ArgumentCaptor<EndedHunt> finishedHuntCaptor;
 
   @Captor
-  protected ArgumentCaptor<Map<String, String>> mapCaptor;
+  private ArgumentCaptor<Map<String, String>> mapCaptor;
 
   @Captor
   private ArgumentCaptor<Team> teamCaptor;
@@ -217,9 +218,9 @@ public class TestSetup {
     taskDocuments.insertOne(task);
   }
 
-  protected List<Document> testTeams;
+  private List<Document> testTeams;
 
-  protected void setupTeams() {
+  private void setupTeams() {
     MongoCollection<Document> teamDocuments = db.getCollection("teams");
     teamDocuments.drop();
     testTeams = new ArrayList<>();
@@ -246,7 +247,7 @@ public class TestSetup {
     teamDocuments.insertOne(team);
   }
 
-  protected void setupStartedHunts() {
+  private void setupStartedHunts() {
     MongoCollection<Document> startedHuntsDocuments = db.getCollection("startedHunts");
     startedHuntsDocuments.drop();
     List<Document> startedHunts = new ArrayList<>();
