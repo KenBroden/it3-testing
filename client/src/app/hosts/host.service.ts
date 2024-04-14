@@ -20,6 +20,7 @@ export class HostService {
   readonly endHuntUrl: string = `${environment.apiUrl}endHunt`;
   readonly endedHuntsUrl: string = `${environment.apiUrl}endedHunts`;
   readonly endedHuntUrl: string = `${environment.apiUrl}startedHunt`;
+  //readonly addTeamsUrl: string = `${environment.apiUrl}addTeams`;
 
   constructor(private httpClient: HttpClient){
   }
@@ -88,4 +89,8 @@ export class HostService {
     return this.httpClient.get<EndedHunt>(`${this.endedHuntsUrl}/${id}`);
   }
 
+  // This takes in a integer from the host and adds that amount of empty teams to the startedHunt
+  addTeams(startedHuntId: string, numTeams: number): Observable<void> {
+    return this.httpClient.post<void>(`${this.startedHuntUrl}/${startedHuntId}/addTeams/${numTeams}`, null);
+  }
 }

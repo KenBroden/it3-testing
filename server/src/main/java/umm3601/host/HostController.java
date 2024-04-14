@@ -557,6 +557,7 @@ public class HostController implements Controller {
     int numTeams = ctx.bodyAsClass(Integer.class);
     for (int i = 0; i < numTeams; i++) {
       Team team = new Team();
+      team._id = new ObjectId().toHexString();
       team.teamName = "Team " + (i + 1);
 
       team.teamMembers = new ArrayList<>();
@@ -565,6 +566,25 @@ public class HostController implements Controller {
     startedHuntCollection.save(startedHunt);
     ctx.status(HttpStatus.OK);
   }
+
+// // Remove a single team from the started hunt
+// public void removeTeamFromStartedHunt(Context ctx) {
+//   String id = ctx.pathParam("id");
+//   StartedHunt startedHunt = getStartedHuntById(id);
+
+//   String teamIdString = ctx.pathParam("teamId");
+//   ObjectId teamId = new ObjectId(teamIdString);
+
+//   Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
+//   if (team == null) {
+//     ctx.status(HttpStatus.NOT_FOUND);
+//     throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
+//   }
+
+//   startedHunt.teams.remove(team);
+//   startedHuntCollection.save(startedHunt);
+//   ctx.status(HttpStatus.OK);
+// }
 
 // Remove a single team from the started hunt
 public void removeTeamFromStartedHunt(Context ctx) {
@@ -584,7 +604,6 @@ public void removeTeamFromStartedHunt(Context ctx) {
   startedHuntCollection.save(startedHunt);
   ctx.status(HttpStatus.OK);
 }
-
 
   @Override
   public void addRoutes(Javalin server) {
