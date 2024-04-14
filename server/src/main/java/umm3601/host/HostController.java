@@ -295,6 +295,7 @@ public class HostController implements Controller {
     startedHunt.completeHunt = completeHunt; // Assign the completeHunt to the startedHunt
     startedHunt.status = true; // true means the hunt is active
     startedHunt.endDate = null; // null endDate until the hunt is ended
+    startedHunt.teams = new ArrayList<Team>(); // Initialize the teams list
     // Insert the StartedHunt into the startedHunt collection
     startedHuntCollection.insertOne(startedHunt);
 
@@ -557,6 +558,7 @@ public class HostController implements Controller {
     for (int i = 0; i < numTeams; i++) {
       Team team = new Team();
       team.teamName = "Team " + (i + 1);
+
       team.teamMembers = new ArrayList<>();
       startedHunt.teams.add(team);
     }
