@@ -17,4 +17,5 @@ public class Task {
     public String name;
     public boolean status;
     public List<String> photos;
+    public String teamId;
 }

@@ -53,6 +53,7 @@ public class HostController implements Controller {
   private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}";
   private static final String API_ADD_TEAMS = "/api/startedHunt/{id}/addTeams";
   private static final String API_REMOVE_TEAM = "/api/startedHunt/{id}/removeTeam/{teamId}";
+  private static final String API_ADD_TEAM_MEMBER = "/api/startedHunt/{id}/addTeamMember/{teamId}";
 
   static final String HOST_KEY = "hostId";
   static final String HUNT_KEY = "huntId";
@@ -371,7 +372,7 @@ public class HostController implements Controller {
     addPhotoPathToTask(ctx, id);
     ctx.status(HttpStatus.CREATED);
     ctx.json(Map.of("id", id));
-  }
+}
 
   public String getFileExtension(String filename) {
     int dotIndex = filename.lastIndexOf('.');
@@ -412,23 +413,26 @@ public class HostController implements Controller {
   public void addPhotoPathToTask(Context ctx, String photoPath) {
     String taskId = ctx.pathParam("taskId");
     String startedHuntId = ctx.pathParam("startedHuntId");
+    String teamId = ctx.queryParam("teamId"); // Extract the teamId from the query parameters
+
     StartedHunt startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(startedHuntId))).first();
     if (startedHunt == null) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
+        ctx.status(HttpStatus.NOT_FOUND);
+        throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
     }
 
     Task task = startedHunt.completeHunt.tasks.stream().filter(t -> t._id.equals(taskId)).findFirst().orElse(null);
 
     if (task == null) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
+        ctx.status(HttpStatus.NOT_FOUND);
+        throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
     }
 
     task.photos.add(photoPath);
+    task.teamId = teamId; // Set the teamId for the task
     startedHunt.completeHunt.tasks.set(startedHunt.completeHunt.tasks.indexOf(task), task);
     startedHuntCollection.save(startedHunt);
-  }
+}
 
   public void replacePhoto(Context ctx) {
     String startedHuntId = ctx.pathParam("startedHuntId");
@@ -605,6 +609,26 @@ public void removeTeamFromStartedHunt(Context ctx) {
   ctx.status(HttpStatus.OK);
 }
 
+// Add a single teamMember to a team.
+public void addTeamMemberToTeam(Context ctx) {
+  String id = ctx.pathParam("id");
+  StartedHunt startedHunt = getStartedHuntById(id);
+
+  String teamIdString = ctx.pathParam("teamId");
+  ObjectId teamId = new ObjectId(teamIdString);
+
+  Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
+  if (team == null) {
+    ctx.status(HttpStatus.NOT_FOUND);
+    throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
+  }
+
+  String teamMember = ctx.bodyAsClass(String.class);
+  team.teamMembers.add(teamMember);
+  startedHuntCollection.save(startedHunt);
+  ctx.status(HttpStatus.OK);
+}
+
   @Override
   public void addRoutes(Javalin server) {
     server.get(API_HOST, this::getHunts);
@@ -624,5 +648,6 @@ public void removeTeamFromStartedHunt(Context ctx) {
     server.delete(API_DELETE_HUNT, this::deleteStartedHunt);
     server.post(API_ADD_TEAMS, this::addTeamsToStartedHunt);
     server.delete(API_REMOVE_TEAM, this::removeTeamFromStartedHunt);
+    server.put(API_ADD_TEAM_MEMBER, this::addTeamMemberToTeam);
   }
 }
