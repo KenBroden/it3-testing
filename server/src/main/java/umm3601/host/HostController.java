@@ -5,7 +5,9 @@ import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.http.NotFoundResponse;
+import io.javalin.websocket.WsContext;
 import umm3601.Controller;
+import umm3601.host.TeamController;
 
 import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
@@ -18,12 +20,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.bson.Document;
 import org.bson.UuidRepresentation;
@@ -51,9 +56,7 @@ public class HostController implements Controller {
   private static final String API_DELETE_HUNT = "/api/endedHunts/{id}";
   private static final String API_PHOTO_UPLOAD = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo";
   private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}";
-  private static final String API_ADD_TEAMS = "/api/startedHunt/{id}/addTeams";
-  private static final String API_REMOVE_TEAM = "/api/startedHunt/{id}/removeTeam/{teamId}";
-  private static final String API_ADD_TEAM_MEMBER = "/api/startedHunt/{id}/addTeamMember/{teamId}";
+  private static final String WEBSOCKET_HOST = "/ws/host";
 
   static final String HOST_KEY = "hostId";
   static final String HUNT_KEY = "huntId";
@@ -68,10 +71,15 @@ public class HostController implements Controller {
   private static final int ACCESS_CODE_RANGE = 900000;
   private static final int ACCESS_CODE_LENGTH = 6;
 
+  private static final int WEB_SOCKET_PING_INTERVAL = 5;
+
   private final JacksonMongoCollection<Host> hostCollection;
   private final JacksonMongoCollection<Hunt> huntCollection;
   private final JacksonMongoCollection<Task> taskCollection;
   private final JacksonMongoCollection<StartedHunt> startedHuntCollection;
+  private final JacksonMongoCollection<Submission> submissionCollection;
+
+  private HashSet<WsContext> connectedContexts = new HashSet<>();
 
   public HostController(MongoDatabase database) {
     hostCollection = JacksonMongoCollection.builder().build(
@@ -98,12 +106,18 @@ public class HostController implements Controller {
         StartedHunt.class,
         UuidRepresentation.STANDARD);
 
+    submissionCollection = JacksonMongoCollection.builder().build(
+        database,
+        "submissions",
+        Submission.class,
+        UuidRepresentation.STANDARD);
+
     File directory = new File("photos");
     if (!directory.exists()) {
-        directory.mkdir();
+      directory.mkdir();
     }
-        // If you require it to make the entire directory path including parents,
-        // use directory.mkdirs(); here instead.
+    // If you require it to make the entire directory path including parents,
+    // use directory.mkdirs(); here instead.
 
   }
 
@@ -194,13 +208,13 @@ public class HostController implements Controller {
 
   public void addNewHunt(Context ctx) {
     Hunt newHunt = ctx.bodyValidator(Hunt.class)
-    .check(hunt -> hunt.hostId != null && hunt.hostId.length() > 0, "Invalid hostId")
-    .check(hunt -> hunt.name.length() <= REASONABLE_NAME_LENGTH_HUNT, "Name must be less than 50 characters")
-    .check(hunt -> hunt.name.length() > 0, "Name must be at least 1 character")
-    .check(hunt -> hunt.description.length() <= REASONABLE_DESCRIPTION_LENGTH_HUNT,
-     "Description must be less than 200 characters")
-    .check(hunt -> hunt.est <= REASONABLE_EST_LENGTH_HUNT, "Estimated time must be less than 4 hours")
-    .get();
+        .check(hunt -> hunt.hostId != null && hunt.hostId.length() > 0, "Invalid hostId")
+        .check(hunt -> hunt.name.length() <= REASONABLE_NAME_LENGTH_HUNT, "Name must be less than 50 characters")
+        .check(hunt -> hunt.name.length() > 0, "Name must be at least 1 character")
+        .check(hunt -> hunt.description.length() <= REASONABLE_DESCRIPTION_LENGTH_HUNT,
+            "Description must be less than 200 characters")
+        .check(hunt -> hunt.est <= REASONABLE_EST_LENGTH_HUNT, "Estimated time must be less than 4 hours")
+        .get();
 
     huntCollection.insertOne(newHunt);
     ctx.json(Map.of("id", newHunt._id));
@@ -209,10 +223,10 @@ public class HostController implements Controller {
 
   public void addNewTask(Context ctx) {
     Task newTask = ctx.bodyValidator(Task.class)
-    .check(task -> task.huntId != null && task.huntId.length() > 0, "Invalid huntId")
-    .check(task -> task.name.length() <= REASONABLE_NAME_LENGTH_TASK, "Name must be less than 150 characters")
-    .check(task -> task.name.length() > 0, "Name must be at least 1 character")
-    .get();
+        .check(task -> task.huntId != null && task.huntId.length() > 0, "Invalid huntId")
+        .check(task -> task.name.length() <= REASONABLE_NAME_LENGTH_TASK, "Name must be less than 150 characters")
+        .check(task -> task.name.length() > 0, "Name must be at least 1 character")
+        .get();
 
     newTask.photos = new ArrayList<String>();
 
@@ -296,7 +310,7 @@ public class HostController implements Controller {
     startedHunt.completeHunt = completeHunt; // Assign the completeHunt to the startedHunt
     startedHunt.status = true; // true means the hunt is active
     startedHunt.endDate = null; // null endDate until the hunt is ended
-    startedHunt.teams = new ArrayList<Team>(); // Initialize the teams list
+
     // Insert the StartedHunt into the startedHunt collection
     startedHuntCollection.insertOne(startedHunt);
 
@@ -357,7 +371,7 @@ public class HostController implements Controller {
           "Was unable to delete ID "
               + id
               + "; perhaps illegal ID or an ID for an item not in the system?");
-     }
+    }
     ctx.status(HttpStatus.OK);
 
     for (Task task : startedHunt.completeHunt.tasks) {
@@ -369,10 +383,10 @@ public class HostController implements Controller {
 
   public void addPhoto(Context ctx) {
     String id = uploadPhoto(ctx);
-    addPhotoPathToTask(ctx, id);
+    addPhotoPathToSubmission(ctx, id);
     ctx.status(HttpStatus.CREATED);
     ctx.json(Map.of("id", id));
-}
+  }
 
   public String getFileExtension(String filename) {
     int dotIndex = filename.lastIndexOf('.');
@@ -397,6 +411,9 @@ public class HostController implements Controller {
 
           Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
           ctx.status(HttpStatus.OK);
+
+          createAndSendEvent("photo-uploaded", id + "." + extension);
+
           return id + "." + extension;
         } catch (IOException e) {
           System.err.println("Error copying the uploaded file: " + e);
@@ -413,26 +430,37 @@ public class HostController implements Controller {
   public void addPhotoPathToTask(Context ctx, String photoPath) {
     String taskId = ctx.pathParam("taskId");
     String startedHuntId = ctx.pathParam("startedHuntId");
-    String teamId = ctx.queryParam("teamId"); // Extract the teamId from the query parameters
-
     StartedHunt startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(startedHuntId))).first();
     if (startedHunt == null) {
-        ctx.status(HttpStatus.NOT_FOUND);
-        throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
+      ctx.status(HttpStatus.NOT_FOUND);
+      throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
     }
 
     Task task = startedHunt.completeHunt.tasks.stream().filter(t -> t._id.equals(taskId)).findFirst().orElse(null);
 
     if (task == null) {
-        ctx.status(HttpStatus.NOT_FOUND);
-        throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
+      ctx.status(HttpStatus.NOT_FOUND);
+      throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
     }
 
     task.photos.add(photoPath);
-    task.teamId = teamId; // Set the teamId for the task
     startedHunt.completeHunt.tasks.set(startedHunt.completeHunt.tasks.indexOf(task), task);
     startedHuntCollection.save(startedHunt);
-}
+  }
+
+  public void addPhotoPathToSubmission(Context ctx, String photoPath) {
+    String taskId = ctx.pathParam("taskId");
+    String teamId = ctx.pathParam("teamId");
+    Submission submission = submissionCollection.find(and(eq("taskId", taskId), eq("teamId", teamId))).first();
+
+    if (submission == null) {
+      ctx.status(HttpStatus.NOT_FOUND);
+      throw new BadRequestResponse("Submission with taskId " + taskId + " and teamId " + teamId + " does not exist");
+    }
+
+    submission.photoPath = photoPath;
+    submissionCollection.insertOne(submission);
+  }
 
   public void replacePhoto(Context ctx) {
     String startedHuntId = ctx.pathParam("startedHuntId");
@@ -448,7 +476,7 @@ public class HostController implements Controller {
     if (!Files.exists(filePath)) {
       ctx.status(HttpStatus.NOT_FOUND);
       throw new BadRequestResponse("Photo with ID " + id + " does not exist");
-  }
+    }
 
     try {
       Files.delete(filePath);
@@ -487,23 +515,8 @@ public class HostController implements Controller {
     ctx.status(HttpStatus.OK);
   }
 
-  // public StartedHunt getStartedHuntById(Context ctx) {
-  //   String id = ctx.pathParam("id");
-  //   StartedHunt startedHunt;
-
-  //   try {
-  //     startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(id))).first();
-  //   } catch (IllegalArgumentException e) {
-  //     throw new BadRequestResponse("The requested started hunt id wasn't a legal Mongo Object ID.");
-  //   }
-  //   if (startedHunt == null) {
-  //     throw new NotFoundResponse("The requested started hunt was not found");
-  //   } else {
-  //     return startedHunt;
-  //   }
-  // }
-
-  public StartedHunt getStartedHuntById(String id) {
+  public StartedHunt getStartedHuntById(Context ctx) {
+    String id = ctx.pathParam("id");
     StartedHunt startedHunt;
 
     try {
@@ -516,11 +529,6 @@ public class HostController implements Controller {
     } else {
       return startedHunt;
     }
-  }
-
-  public StartedHunt getStartedHuntById(Context ctx) {
-    String id = ctx.pathParam("id");
-    return getStartedHuntById(id);
   }
 
   public List<FinishedTask> getFinishedTasks(List<Task> tasks) {
@@ -552,82 +560,43 @@ public class HostController implements Controller {
     return encodedPhotos;
   }
 
-  //Create and add the given number of teams to the started hunt
-  //The host will be prompted to select the number of teams to add
-  public void addTeamsToStartedHunt(Context ctx) {
-    String id = ctx.pathParam("id");
-    StartedHunt startedHunt = getStartedHuntById(id);
+  public Map<String, String> createEvent(String event, String data) {
+    return Map.of(event, data, "timestamp", new Date().toString());
+  }
 
-    int numTeams = ctx.bodyAsClass(Integer.class);
-    for (int i = 0; i < numTeams; i++) {
-      Team team = new Team();
-      team._id = new ObjectId().toHexString();
-      team.teamName = "Team " + (i + 1);
-
-      team.teamMembers = new ArrayList<>();
-      startedHunt.teams.add(team);
+  public void updateListeners(Map<String, String> events) {
+    Iterator<WsContext> iterator = connectedContexts.iterator();
+    while (iterator.hasNext()) {
+      WsContext ws = iterator.next();
+      if (ws.session.isOpen()) {
+        ws.send(events);
+      } else {
+        iterator.remove();
+      }
     }
-    startedHuntCollection.save(startedHunt);
-    ctx.status(HttpStatus.OK);
   }
 
-// // Remove a single team from the started hunt
-// public void removeTeamFromStartedHunt(Context ctx) {
-//   String id = ctx.pathParam("id");
-//   StartedHunt startedHunt = getStartedHuntById(id);
-
-//   String teamIdString = ctx.pathParam("teamId");
-//   ObjectId teamId = new ObjectId(teamIdString);
-
-//   Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
-//   if (team == null) {
-//     ctx.status(HttpStatus.NOT_FOUND);
-//     throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
-//   }
-
-//   startedHunt.teams.remove(team);
-//   startedHuntCollection.save(startedHunt);
-//   ctx.status(HttpStatus.OK);
-// }
-
-// Remove a single team from the started hunt
-public void removeTeamFromStartedHunt(Context ctx) {
-  String id = ctx.pathParam("id");
-  StartedHunt startedHunt = getStartedHuntById(id);
-
-  String teamIdString = ctx.pathParam("teamId");
-  ObjectId teamId = new ObjectId(teamIdString);
-
-  Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
-  if (team == null) {
-    ctx.status(HttpStatus.NOT_FOUND);
-    throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
+  public void addConnectedContext(WsContext context) {
+    this.connectedContexts.add(context);
   }
 
-  startedHunt.teams.remove(team);
-  startedHuntCollection.save(startedHunt);
-  ctx.status(HttpStatus.OK);
-}
-
-// Add a single teamMember to a team.
-public void addTeamMemberToTeam(Context ctx) {
-  String id = ctx.pathParam("id");
-  StartedHunt startedHunt = getStartedHuntById(id);
-
-  String teamIdString = ctx.pathParam("teamId");
-  ObjectId teamId = new ObjectId(teamIdString);
-
-  Team team = startedHunt.teams.stream().filter(t -> t._id.equals(teamId.toHexString())).findFirst().orElse(null);
-  if (team == null) {
-    ctx.status(HttpStatus.NOT_FOUND);
-    throw new NotFoundResponse("Team with ID " + teamId.toHexString() + " does not exist");
+  public ArrayList<WsContext> getConnectedContexts() {
+    return new ArrayList<>(this.connectedContexts);
   }
 
-  String teamMember = ctx.bodyAsClass(String.class);
-  team.teamMembers.add(teamMember);
-  startedHuntCollection.save(startedHunt);
-  ctx.status(HttpStatus.OK);
-}
+  public void createAndSendEvent(String event, String data) {
+    Map<String, String> events = createEvent(event, data);
+    updateListeners(events);
+  }
+
+  public void handleWebSocketConnections(Javalin server) {
+    server.ws(WEBSOCKET_HOST, ws -> {
+      ws.onConnect(ctx -> {
+        addConnectedContext(ctx);
+        ctx.enableAutomaticPings(WEB_SOCKET_PING_INTERVAL, TimeUnit.SECONDS);
+      });
+    });
+  }
 
   @Override
   public void addRoutes(Javalin server) {
@@ -646,8 +615,7 @@ public void addTeamMemberToTeam(Context ctx) {
     server.get(API_ENDED_HUNT, this::getEndedHunt);
     server.get(API_ENDED_HUNTS, this::getEndedHunts);
     server.delete(API_DELETE_HUNT, this::deleteStartedHunt);
-    server.post(API_ADD_TEAMS, this::addTeamsToStartedHunt);
-    server.delete(API_REMOVE_TEAM, this::removeTeamFromStartedHunt);
-    server.put(API_ADD_TEAM_MEMBER, this::addTeamMemberToTeam);
+
+    handleWebSocketConnections(server);
   }
 }

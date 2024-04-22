@@ -1,5 +1,6 @@
 package umm3601.host;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -17,6 +18,9 @@ public class StartedHunt {
   public CompleteHunt completeHunt;
   public Boolean status;
   public Date endDate;
-  public List<Team> teams;
+  public List<String> submissionIds;
 
+  public StartedHunt() {
+    submissionIds = new ArrayList<>();
+  }
 }

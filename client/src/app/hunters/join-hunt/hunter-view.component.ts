@@ -11,6 +11,7 @@ import { HuntCardComponent } from 'src/app/hunts/hunt-card.component';
 import { HostService } from 'src/app/hosts/host.service';
 import { CommonModule } from '@angular/common';
 import { MatDialog } from '@angular/material/dialog';
+import { Team } from './team';
 
 
 @Component({
@@ -25,6 +26,8 @@ export class HunterViewComponent implements OnInit, OnDestroy {
   tasks: Task[] = [];
   error: { help: string, httpResponse: string, message: string };
   imageUrls = {};
+  team: Team;
+  teamId: string;
 
   private ngUnsubscribe = new Subject<void>();
 
@@ -38,26 +41,33 @@ export class HunterViewComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.route.paramMap.pipe(
-      map((params: ParamMap) => params.get('accessCode')),
-      switchMap((accessCode: string) => this.hostService.getStartedHunt(accessCode)),
-
+      map((params: ParamMap) => {
+        return {
+          accessCode: params.get('accessCode'),
+          teamId: params.get('teamId')
+        };
+      }),
+      switchMap(({accessCode, teamId}) => {
+        this.teamId = teamId;
+        return this.hostService.getStartedHunt(accessCode);
+      }),
       takeUntil(this.ngUnsubscribe)
-      ).subscribe({
-        next: startedHunt => {
-          for (const task of startedHunt.completeHunt.tasks) {
-            task.photos = [];
-          }
-          this.startedHunt = startedHunt;
-          return;
-        },
-        error: _err => {
-          this.error = {
-            help: 'There is an error trying to load the tasks - Please try to run the hunt again',
-            httpResponse: _err.message,
-            message: _err.error?.title,
-          };
+    ).subscribe({
+      next: startedHunt => {
+        for (const task of startedHunt.completeHunt.tasks) {
+          task.photos = [];
         }
-      });
+        this.startedHunt = startedHunt;
+        return;
+      },
+      error: _err => {
+        this.error = {
+          help: 'There is an error trying to load the tasks - Please try to run the hunt again',
+          httpResponse: _err.message,
+          message: _err.error?.title,
+        };
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -81,17 +91,17 @@ export class HunterViewComponent implements OnInit, OnDestroy {
 
       if (file) {
         if (task.photos.length > 0) {
-          this.replacePhoto(file, task, this.startedHunt._id);
+          this.replacePhoto(file, task, this.teamId);
         }
         else {
-          this.submitPhoto(file, task, this.startedHunt._id);
+          this.submitPhoto(file, task, this.teamId);
         }
       }
     }
   }
 
-  submitPhoto(file: File, task: Task, startedHuntId: string): void {
-    this.hostService.submitPhoto(startedHuntId, task._id, file).subscribe({
+  submitPhoto(file: File, task: Task, teamId: string): void {
+    this.hostService.submitPhoto(this.startedHunt._id, task._id, file, teamId).subscribe({
       next: (photoId: string) => {
         task.status = true;
         task.photos.push(photoId);
@@ -108,20 +118,21 @@ export class HunterViewComponent implements OnInit, OnDestroy {
     });
   }
 
-  replacePhoto(file: File, task: Task, startedHuntId: string): void {
-    this.hostService.replacePhoto(startedHuntId, task._id, task.photos[0], file).subscribe({
-      next: (photoId: string) => {
-        task.photos[0] = photoId;
-        this.snackBar.open('Photo replaced successfully', 'Close', {
-          duration: 3000
-        });
-      },
-      error: (error: Error) => {
-        console.error('Error replacing photo', error);
-        this.snackBar.open('Error replacing photo. Please try again', 'Close', {
-          duration: 3000
-        });
-      },
-    });
-  }
+replacePhoto(file: File, task: Task, teamId: string): void {
+  this.hostService.replacePhoto(this.startedHunt._id, task._id, task.photos[0], file, teamId).subscribe({
+    next: (photoId: string) => {
+      task.photos[0] = photoId;
+      this.snackBar.open('Photo replaced successfully', 'Close', {
+        duration: 3000
+      });
+    },
+    error: (error: Error) => {
+      console.error('Error replacing photo', error);
+      this.snackBar.open('Error replacing photo. Please try again', 'Close', {
+        duration: 3000
+      });
+    },
+  });
+}
+
 }

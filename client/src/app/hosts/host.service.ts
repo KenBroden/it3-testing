@@ -7,6 +7,8 @@ import { Task } from '../hunts/task';
 import { CompleteHunt } from '../hunts/completeHunt';
 import { StartedHunt } from '../startHunt/startedHunt';
 import { EndedHunt } from '../endedHunts/endedHunt';
+import { Team } from '../hunters/join-hunt/team';
+//import { Team } from '../hunters/join-hunt/team';
 
 @Injectable({
   providedIn: 'root'
@@ -73,24 +75,28 @@ export class HostService {
     return this.httpClient.delete<void>(`${this.endedHuntsUrl}/${id}`);
   }
 
-  submitPhoto(startedHuntId: string, taskId: string, photo: File): Observable<string> {
+  submitPhoto(startedHuntId: string, taskId: string, photo: File, teamId: string): Observable<string> {
     const formData = new FormData();
     formData.append('photo', photo);
-    return this.httpClient.post<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo`, formData).pipe(map(result => result.id));
+    return this.httpClient.post<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${teamId}`, formData).pipe(map(result => result.id));
   }
 
-  replacePhoto(startedHuntId: string, taskId: string, photoPath: string, photo: File): Observable<string> {
+  replacePhoto(startedHuntId: string, taskId: string, photoPath: string, photo: File, teamId: string): Observable<string> {
     const formData = new FormData();
     formData.append('photo', photo);
-    return this.httpClient.put<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${photoPath}`, formData).pipe(map(result => result.id));
+    return this.httpClient.put<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${photoPath}/${teamId}`, formData).pipe(map(result => result.id));
   }
 
   getEndedHuntById(id: string): Observable<EndedHunt> {
     return this.httpClient.get<EndedHunt>(`${this.endedHuntsUrl}/${id}`);
   }
 
-  // This takes in a integer from the host and adds that amount of empty teams to the startedHunt
-  addTeams(startedHuntId: string, numTeams: number): Observable<void> {
-    return this.httpClient.post<void>(`/api/startedHunt/${startedHuntId}/addTeams`, numTeams);
-  }
+// This takes in a integer from the host and adds that amount of empty teams to the startedHunt
+addTeams(startedHuntId: string, numTeams: number): Observable<void> {
+  return this.httpClient.post<void>(`/api/teams/create?startedHuntId=${startedHuntId}&numTeams=${numTeams}`,null);
+}
+
+getTeams(startedHuntId: string): Observable<Team[]> {
+  return this.httpClient.get<Team[]>(`/api/startedHunts/${startedHuntId}/teams`);
+}
 }
