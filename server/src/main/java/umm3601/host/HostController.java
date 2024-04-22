@@ -382,8 +382,11 @@ public class HostController implements Controller {
   }
 
   public void addPhoto(Context ctx) {
+    System.out.println("addPhoto method called");
     String id = uploadPhoto(ctx);
+    System.out.println("Photo uploaded with id: " + id);
     addPhotoPathToSubmission(ctx, id);
+    System.out.println("Photo path added to submission");
     ctx.status(HttpStatus.CREATED);
     ctx.json(Map.of("id", id));
   }
@@ -398,6 +401,7 @@ public class HostController implements Controller {
   }
 
   public String uploadPhoto(Context ctx) {
+    System.out.println("uploadPhoto method called");
     try {
       var uploadedFile = ctx.uploadedFile("photo");
       if (uploadedFile != null) {
@@ -427,39 +431,47 @@ public class HostController implements Controller {
     }
   }
 
-  public void addPhotoPathToTask(Context ctx, String photoPath) {
-    String taskId = ctx.pathParam("taskId");
-    String startedHuntId = ctx.pathParam("startedHuntId");
-    StartedHunt startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(startedHuntId))).first();
-    if (startedHunt == null) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
-    }
+  // public void addPhotoPathToTask(Context ctx, String photoPath) {
+  //   String taskId = ctx.pathParam("taskId");
+  //   String startedHuntId = ctx.pathParam("startedHuntId");
+  //   StartedHunt startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(startedHuntId))).first();
+  //   if (startedHunt == null) {
+  //     ctx.status(HttpStatus.NOT_FOUND);
+  //     throw new BadRequestResponse("StartedHunt with ID " + startedHuntId + " does not exist");
+  //   }
 
-    Task task = startedHunt.completeHunt.tasks.stream().filter(t -> t._id.equals(taskId)).findFirst().orElse(null);
+  //   Task task = startedHunt.completeHunt.tasks.stream().filter(t -> t._id.equals(taskId)).findFirst().orElse(null);
 
-    if (task == null) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
-    }
+  //   if (task == null) {
+  //     ctx.status(HttpStatus.NOT_FOUND);
+  //     throw new BadRequestResponse("Task with ID " + taskId + " does not exist");
+  //   }
 
-    task.photos.add(photoPath);
-    startedHunt.completeHunt.tasks.set(startedHunt.completeHunt.tasks.indexOf(task), task);
-    startedHuntCollection.save(startedHunt);
+  //   task.photos.add(photoPath);
+  //   startedHunt.completeHunt.tasks.set(startedHunt.completeHunt.tasks.indexOf(task), task);
+  //   startedHuntCollection.save(startedHunt);
+  // }
+
+  public void createSubmission(Context ctx, String taskId, String teamId, String photoPath) {
+    Submission newSubmission = new Submission();
+    newSubmission.taskId = taskId;
+    newSubmission.teamId = teamId;
+    newSubmission.photoPath = photoPath;
+    submissionCollection.insertOne(newSubmission);
   }
 
   public void addPhotoPathToSubmission(Context ctx, String photoPath) {
+    System.out.println("addPhotoPathToSubmission method called with photoPath: " + photoPath);
     String taskId = ctx.pathParam("taskId");
     String teamId = ctx.pathParam("teamId");
     Submission submission = submissionCollection.find(and(eq("taskId", taskId), eq("teamId", teamId))).first();
 
     if (submission == null) {
-      ctx.status(HttpStatus.NOT_FOUND);
-      throw new BadRequestResponse("Submission with taskId " + taskId + " and teamId " + teamId + " does not exist");
+      createSubmission(ctx, taskId, teamId, photoPath);
+    } else {
+      submission.photoPath = photoPath;
+      submissionCollection.insertOne(submission);
     }
-
-    submission.photoPath = photoPath;
-    submissionCollection.insertOne(submission);
   }
 
   public void replacePhoto(Context ctx) {
