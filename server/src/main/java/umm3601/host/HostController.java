@@ -483,13 +483,38 @@ public class HostController implements Controller {
     }
   }
 
+  // public void replacePhoto(Context ctx) {
+  //   String startedHuntId = ctx.pathParam("startedHuntId");
+  //   String taskId = ctx.pathParam("taskId");
+  //   String photoId = ctx.pathParam("photoId");
+  //   deletePhoto(photoId, ctx);
+  //   removePhotoPathFromTask(ctx, taskId, startedHuntId, photoId);
+  //   addPhoto(ctx);
+  // }
+
   public void replacePhoto(Context ctx) {
-    String startedHuntId = ctx.pathParam("startedHuntId");
     String taskId = ctx.pathParam("taskId");
-    String photoId = ctx.pathParam("photoId");
-    deletePhoto(photoId, ctx);
-    removePhotoPathFromTask(ctx, taskId, startedHuntId, photoId);
-    addPhoto(ctx);
+    String teamId = ctx.pathParam("teamId");
+
+    // Find the submission
+    Submission submission = submissionCollection.find(and(eq("taskId", taskId), eq("teamId", teamId))).first();
+
+    if (submission == null) {
+      throw new BadRequestResponse("No submission found for the given taskId and teamId");
+    }
+
+    // Delete the old photo
+    deletePhoto(submission.photoPath, ctx);
+
+    // Upload a new photo and update the submission
+    String newPhotoId = uploadPhoto(ctx);
+    submission.photoPath = newPhotoId;
+
+    // Update the submission in the database
+    submissionCollection.updateOne(eq("_id", submission._id), new Document("$set", new Document("photoPath", newPhotoId)));
+
+    ctx.status(HttpStatus.OK);
+    ctx.json(Map.of("id", newPhotoId));
   }
 
   public void deletePhoto(String id, Context ctx) {
