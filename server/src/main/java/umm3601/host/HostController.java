@@ -452,25 +452,34 @@ public class HostController implements Controller {
   //   startedHuntCollection.save(startedHunt);
   // }
 
-  public void createSubmission(Context ctx, String taskId, String teamId, String photoPath) {
+  public Submission createSubmission(Context ctx, String taskId, String teamId, String photoPath) {
     Submission newSubmission = new Submission();
     newSubmission.taskId = taskId;
     newSubmission.teamId = teamId;
     newSubmission.photoPath = photoPath;
     submissionCollection.insertOne(newSubmission);
+    return newSubmission; // return the new submission
   }
 
   public void addPhotoPathToSubmission(Context ctx, String photoPath) {
     System.out.println("addPhotoPathToSubmission method called with photoPath: " + photoPath);
     String taskId = ctx.pathParam("taskId");
     String teamId = ctx.pathParam("teamId");
+    String startedHuntId = ctx.pathParam("startedHuntId"); // get the startedHuntId from the context
     Submission submission = submissionCollection.find(and(eq("taskId", taskId), eq("teamId", teamId))).first();
 
     if (submission == null) {
-      createSubmission(ctx, taskId, teamId, photoPath);
+      submission = createSubmission(ctx, taskId, teamId, photoPath); // store the new submission
     } else {
       submission.photoPath = photoPath;
       submissionCollection.insertOne(submission);
+    }
+
+    // Add the submission's ID to the StartedHunt's submissionIds array
+    StartedHunt startedHunt = startedHuntCollection.find(eq("_id", new ObjectId(startedHuntId))).first();
+    if (startedHunt != null) {
+      startedHunt.submissionIds.add(submission._id); // assuming submissionIds is a List<String>
+      startedHuntCollection.save(startedHunt);
     }
   }
 
