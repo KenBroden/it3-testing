@@ -7,7 +7,7 @@ import io.javalin.http.HttpStatus;
 import io.javalin.http.NotFoundResponse;
 import io.javalin.websocket.WsContext;
 import umm3601.Controller;
-import umm3601.host.TeamController;
+//import umm3601.host.TeamController;
 
 import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
