@@ -2,13 +2,18 @@
 
 <h2>Select Team</h2>
 
+<!-- Add this line to print out the teams variable -->
+<p>{{ teams | json }}</p>
+
 @if (teams) {
   <ul>
     @for (team of teams; track team._id) {
       <li>
         <button (click)="toggleSelection(team)">
           {{ team.teamName }}
-          <span *if="team.selected" class="check-mark">✓</span>
+          @if (team.selected) {
+            <span class="check-mark">✓</span>
+          }
         </button>
       </li>
     }

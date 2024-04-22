@@ -3,12 +3,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatError } from '@angular/material/form-field';
 import { CommonModule } from '@angular/common';
-
-interface Team {
-  _id: string;
-  teamName: string;
-  selected?: boolean; // Optional property to track selection
-}
+import { HostService } from 'src/app/hosts/host.service';
+import { Team } from '../team';
 
 @Component({
   selector: 'app-select-team',
@@ -20,15 +16,22 @@ interface Team {
 export class SelectTeamComponent implements OnInit {
   teams: Team[];
   startedHuntId: string;
+  accessCode: string;
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) { }
+  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private hostService: HostService) { }
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
-      this.startedHuntId = params['startedHuntId'];
-      this.http.get<Team[]>(`/api/startedHunts/${this.startedHuntId}/teams`).subscribe(teams => {
-        // Initialize selected property for each team
-        this.teams = teams.map(team => ({ ...team, selected: false }));
+      this.accessCode = params['accessCode'];
+      console.log('Access Code:', this.accessCode);
+      this.hostService.getStartedHunt(this.accessCode).subscribe(startedHunt => {
+        // Set startedHuntId to startedHunt._id instead of accessCode
+        this.startedHuntId = startedHunt._id;
+        console.log('startedHuntId:', this.startedHuntId);
+        this.hostService.getTeams(this.startedHuntId).subscribe(teams => {
+          // Initialize selected property for each team
+          this.teams = teams.map(team => ({ ...team, selected: false }));
+        });
       });
     });
   }
@@ -47,7 +50,7 @@ export class SelectTeamComponent implements OnInit {
     // Find the ID of the selected team
     const selectedTeamId = this.teams.find(team => team.selected)._id;
     // Navigate to the next page with the selected team ID
-    this.router.navigate(['/hunter-view', this.startedHuntId, 'teams', selectedTeamId]);
+    this.router.navigate(['/hunter-view', this.accessCode, 'teams', selectedTeamId]);
   }
 
   // Function to track items by their ID

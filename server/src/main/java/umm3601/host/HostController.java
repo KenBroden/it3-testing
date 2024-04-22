@@ -54,8 +54,8 @@ public class HostController implements Controller {
   private static final String API_ENDED_HUNT = "/api/endedHunts/{id}";
   private static final String API_ENDED_HUNTS = "/api/hosts/{id}/endedHunts";
   private static final String API_DELETE_HUNT = "/api/endedHunts/{id}";
-  private static final String API_PHOTO_UPLOAD = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo";
-  private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}";
+  private static final String API_PHOTO_UPLOAD = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{teamId}";
+  private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}/{teamId}";
   private static final String WEBSOCKET_HOST = "/ws/host";
 
   static final String HOST_KEY = "hostId";
