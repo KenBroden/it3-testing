@@ -37,7 +37,14 @@ export class SelectTeamComponent implements OnInit {
   }
 
   toggleSelection(team: Team): void {
-    // Toggle the selection state of the team
+    // Deselect all other teams
+    this.teams.forEach(t => {
+      if (t !== team) {
+        t.selected = false;
+      }
+    });
+
+    // Toggle the selection state of the clicked team
     team.selected = !team.selected;
   }
 

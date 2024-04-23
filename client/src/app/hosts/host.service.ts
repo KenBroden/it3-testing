@@ -8,6 +8,7 @@ import { CompleteHunt } from '../hunts/completeHunt';
 import { StartedHunt } from '../startHunt/startedHunt';
 import { EndedHunt } from '../endedHunts/endedHunt';
 import { Team } from '../hunters/join-hunt/team';
+import { Submission } from '../hunters/join-hunt/Submission';
 //import { Team } from '../hunters/join-hunt/team';
 
 @Injectable({
@@ -99,4 +100,12 @@ addTeams(startedHuntId: string, numTeams: number): Observable<void> {
 getTeams(startedHuntId: string): Observable<Team[]> {
   return this.httpClient.get<Team[]>(`/api/startedHunts/${startedHuntId}/teams`);
 }
+
+getTeamSubmissions(teamId: string): Observable<Submission[]> {
+  return this.httpClient.get<Submission[]>(`/api/submissions/team/${teamId}`);
+}
+
+getPhoto(submissionId: string): Observable<string> {
+  return this.httpClient.get(`/api/submissions/${submissionId}/photo`, { responseType: 'text' });
+  }
 }

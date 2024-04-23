@@ -4,6 +4,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 
 import umm3601.host.HostController;
+import umm3601.host.SubmissionController;
 import umm3601.host.TeamController;
 
 public class Main {
@@ -62,7 +63,8 @@ public class Main {
       //
       // You can also remove this UserController once you don't need it.
       new HostController(database),
-      new TeamController(database)
+      new TeamController(database),
+      new SubmissionController(database)
     };
     return controllers;
   }

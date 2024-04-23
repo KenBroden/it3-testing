@@ -12,6 +12,7 @@ import { HostService } from 'src/app/hosts/host.service';
 import { CommonModule } from '@angular/common';
 import { MatDialog } from '@angular/material/dialog';
 import { Team } from './team';
+import { Submission } from './Submission';
 
 
 @Component({
@@ -51,22 +52,37 @@ export class HunterViewComponent implements OnInit, OnDestroy {
         this.teamId = teamId;
         return this.hostService.getStartedHunt(accessCode);
       }),
+      // Fetch the submissions for the team
+      switchMap((startedHunt: StartedHunt) => {
+        this.startedHunt = startedHunt;
+        return this.hostService.getTeamSubmissions(this.teamId);
+      }),
       takeUntil(this.ngUnsubscribe)
     ).subscribe({
-      next: startedHunt => {
-        for (const task of startedHunt.completeHunt.tasks) {
-          task.photos = [];
+      next: (submissions: Submission[]) => {
+        // Mark the tasks as complete and display the photos
+        for (const submission of submissions) {
+          const task = this.startedHunt.completeHunt.tasks.find(task => task._id === submission.taskId);
+          if (task) {
+            task.status = true;
+            this.hostService.getPhoto(submission._id).subscribe({
+              next: (photoBase64: string) => {
+                this.imageUrls[task._id] = photoBase64;
+              },
+              error: (_err) => {
+                console.error('Error loading photo', _err);
+              },
+            });
+          }
         }
-        this.startedHunt = startedHunt;
-        return;
       },
-      error: _err => {
+      error: (_err) => {
         this.error = {
-          help: 'There is an error trying to load the tasks - Please try to run the hunt again',
+          help: 'There is an error trying to load the tasks or the submissions - Please try to run the hunt again',
           httpResponse: _err.message,
           message: _err.error?.title,
         };
-      }
+      },
     });
   }
 
