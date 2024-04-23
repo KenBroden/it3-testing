@@ -77,20 +77,26 @@ public class SubmissionController implements Controller{
     return submissionCollection.find(eq("startedHuntId", startedHuntId)).first();
   }
 
-  public String getPhotoFromSubmission(Context ctx) {
+  public void getPhotoFromSubmission(Context ctx) {
     String submissionId = ctx.pathParam("id");
+    System.out.println("Server: Received request to get photo for submissionId: " + submissionId);
+
     Submission submission = submissionCollection.find(eq("_id", new ObjectId(submissionId))).first();
 
     File photo = new File("photos/" + submission.photoPath);
     if (photo.exists()) {
       try {
         byte[] bytes = Files.readAllBytes(Paths.get(photo.getPath()));
-        return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+        String encodedPhoto = "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+        System.out.println("Server: Successfully encoded photo for submissionId: " + submissionId);
+        ctx.result(encodedPhoto);
       } catch (IOException e) {
         e.printStackTrace();
       }
+    } else {
+      System.out.println("Server: No photo found for submissionId: " + submissionId);
+      ctx.result("");
     }
-    return "";
   }
 
   @Override

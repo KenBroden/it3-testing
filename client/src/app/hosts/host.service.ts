@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Hunt } from '../hunts/hunt';
 import { Task } from '../hunts/task';
@@ -106,6 +106,23 @@ getTeamSubmissions(teamId: string): Observable<Submission[]> {
 }
 
 getPhoto(submissionId: string): Observable<string> {
-  return this.httpClient.get(`/api/submissions/${submissionId}/photo`, { responseType: 'text' });
+  console.log(`Client: Sending request to get photo for submissionId: ${submissionId}`);
+  return this.httpClient.get(`/api/submissions/${submissionId}/photo`, { responseType: 'text' })
+    .pipe(
+      tap(() => console.log(`Client: Received photo for submissionId: ${submissionId}`)),
+      catchError(error => {
+        console.error(`Client: Error getting photo for submissionId: ${submissionId}`, error);
+        return throwError(() => error);
+      })
+    );
+}
+
+convertToImageSrc(base64: string): string {
+  if (base64.startsWith('data:image/png;base64,')) {
+    return base64;
   }
+  return 'data:image/base64,' + base64;
+}
+
+
 }

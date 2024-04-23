@@ -606,18 +606,18 @@ public class HostController implements Controller {
     return encodedPhotos;
   }
 
-  public String getPhotoFromSubmission(Submission submission) {
-    File photo = new File("photos/" + submission.photoPath);
-    if (photo.exists()) {
-      try {
-        byte[] bytes = Files.readAllBytes(Paths.get(photo.getPath()));
-        return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-    return "";
-  }
+  // public String getPhotoFromSubmission(Submission submission) {
+  //   File photo = new File("photos/" + submission.photoPath);
+  //   if (photo.exists()) {
+  //     try {
+  //       byte[] bytes = Files.readAllBytes(Paths.get(photo.getPath()));
+  //       return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+  //     } catch (IOException e) {
+  //       e.printStackTrace();
+  //     }
+  //   }
+  //   return "";
+  // }
 
   public Map<String, String> createEvent(String event, String data) {
     return Map.of(event, data, "timestamp", new Date().toString());

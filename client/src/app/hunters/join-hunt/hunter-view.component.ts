@@ -3,7 +3,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { Subject, forkJoin } from 'rxjs';
 import { map, switchMap, takeUntil } from 'rxjs/operators';
 import { StartedHunt } from 'src/app/startHunt/startedHunt';
 import { Task } from 'src/app/hunts/task';
@@ -50,31 +50,16 @@ export class HunterViewComponent implements OnInit, OnDestroy {
       }),
       switchMap(({accessCode, teamId}) => {
         this.teamId = teamId;
-        return this.hostService.getStartedHunt(accessCode);
-      }),
-      // Fetch the submissions for the team
-      switchMap((startedHunt: StartedHunt) => {
-        this.startedHunt = startedHunt;
-        return this.hostService.getTeamSubmissions(this.teamId);
+        return forkJoin({
+          startedHunt: this.hostService.getStartedHunt(accessCode),
+          submissions: this.hostService.getTeamSubmissions(teamId)
+        });
       }),
       takeUntil(this.ngUnsubscribe)
     ).subscribe({
-      next: (submissions: Submission[]) => {
-        // Mark the tasks as complete and display the photos
-        for (const submission of submissions) {
-          const task = this.startedHunt.completeHunt.tasks.find(task => task._id === submission.taskId);
-          if (task) {
-            task.status = true;
-            this.hostService.getPhoto(submission._id).subscribe({
-              next: (photoBase64: string) => {
-                this.imageUrls[task._id] = photoBase64;
-              },
-              error: (_err) => {
-                console.error('Error loading photo', _err);
-              },
-            });
-          }
-        }
+      next: ({startedHunt, submissions}) => {
+        this.startedHunt = startedHunt;
+        this.loadPhotos(submissions);
       },
       error: (_err) => {
         this.error = {
@@ -84,6 +69,30 @@ export class HunterViewComponent implements OnInit, OnDestroy {
         };
       },
     });
+  }
+
+  loadPhotos(submissions: Submission[]): void {
+    if (submissions.length === 0) {
+      console.log('No submissions to process.');
+      return;
+    }
+
+    for (const submission of submissions) {
+      const task = this.startedHunt.completeHunt.tasks.find(task => task._id === submission.taskId);
+      if (task) {
+        task.status = true;
+        task.photos.push(submission._id);
+        this.hostService.getPhoto(submission._id).subscribe({
+          next: (photoBase64: string) => {
+            console.log(photoBase64);
+            this.imageUrls[task._id] = this.hostService.convertToImageSrc(photoBase64);
+          },
+          error: (_err) => {
+            console.error('Error loading photo', _err);
+          },
+        });
+      }
+    }
   }
 
   ngOnDestroy(): void {
