@@ -6,7 +6,7 @@ import { Hunt } from '../hunts/hunt';
 import { Task } from '../hunts/task';
 import { CompleteHunt } from '../hunts/completeHunt';
 import { StartedHunt } from '../startHunt/startedHunt';
-import { EndedHunt } from '../endedHunts/endedHunt';
+//import { EndedHunt } from '../endedHunts/endedHunt';
 import { Team } from '../hunters/join-hunt/team';
 import { Submission } from '../hunters/join-hunt/Submission';
 //import { Team } from '../hunters/join-hunt/team';
@@ -88,8 +88,8 @@ export class HostService {
     return this.httpClient.put<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${photoPath}/${teamId}`, formData).pipe(map(result => result.id));
   }
 
-  getEndedHuntById(id: string): Observable<EndedHunt> {
-    return this.httpClient.get<EndedHunt>(`${this.endedHuntsUrl}/${id}`);
+  getEndedHuntById(id: string): Observable<StartedHunt> {
+    return this.httpClient.get<StartedHunt>(`${this.endedHuntsUrl}/${id}`);
   }
 
 // This takes in a integer from the host and adds that amount of empty teams to the startedHunt
@@ -124,5 +124,15 @@ convertToImageSrc(base64: string): string {
   return 'data:image/base64,' + base64;
 }
 
+getSubmissionsByStartedHunt(startedHuntId: string): Observable<Submission[]> {
+  return this.httpClient.get<Submission[]>(`/api/submissions/startedHunt/${startedHuntId}`);
+}
 
+getAllStartedHuntTeams(startedHuntId: string): Observable<Team[]> {
+  return this.httpClient.get<Team[]>(`/api/startedHunts/${startedHuntId}/teams`);
+}
+
+getStartedHuntById(id: string): Observable<StartedHunt> {
+  return this.httpClient.get<StartedHunt>(`/api/startedHunt/${id}`);
+}
 }

@@ -4,7 +4,8 @@ export interface StartedHunt {
   _id: string;
   completeHunt: CompleteHunt;
   accessCode: string;
+  status: boolean;
   endDate?: Date;
-  teams?: string[];
+  submissionIds?: string[];
 
 }

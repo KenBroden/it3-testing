@@ -57,6 +57,7 @@ public class HostController implements Controller {
   private static final String API_PHOTO_UPLOAD = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{teamId}";
   private static final String API_PHOTO_REPLACE = "/api/startedHunt/{startedHuntId}/tasks/{taskId}/photo/{photoId}/{teamId}";
   private static final String WEBSOCKET_HOST = "/ws/host";
+  private static final String API_STARTED_HUNT_BY_ID = "/api/startedHunt/{id}";
 
   static final String HOST_KEY = "hostId";
   static final String HUNT_KEY = "huntId";
@@ -573,6 +574,8 @@ public class HostController implements Controller {
     if (startedHunt == null) {
       throw new NotFoundResponse("The requested started hunt was not found");
     } else {
+      ctx.json(startedHunt);
+      ctx.status(HttpStatus.OK);
       return startedHunt;
     }
   }
@@ -674,6 +677,7 @@ public class HostController implements Controller {
     server.get(API_ENDED_HUNT, this::getEndedHunt);
     server.get(API_ENDED_HUNTS, this::getEndedHunts);
     server.delete(API_DELETE_HUNT, this::deleteStartedHunt);
+    server.get(API_STARTED_HUNT_BY_ID, this::getStartedHuntById);
 
     handleWebSocketConnections(server);
   }
