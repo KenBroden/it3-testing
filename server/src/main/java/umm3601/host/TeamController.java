@@ -22,8 +22,9 @@ import static com.mongodb.client.model.Filters.eq;
 
 public class TeamController implements Controller {
 
-  private static final String API_NICKNAME = "api/hunters/{hunterName}";
-  private static final String API_TEAMS = "api/hunters/{hunterName}/teams";
+  private static final String API_TEAM = "/api/teams/{id}";
+  private static final String API_TEAMS = "/api/teams";
+  private static final String API_CREATE_TEAMS = "/api/teams/create";
 
   private final JacksonMongoCollection<Team> teamCollection;
 
@@ -86,70 +87,48 @@ public class TeamController implements Controller {
     ctx.status(HttpStatus.OK);
   }
 
-  public void joinTeam(Context ctx) {
-    String id = ctx.pathParam("id");
-    String hunterName = ctx.queryParam("name");
-
-    if (hunterName == null || hunterName.isEmpty()) {
-      throw new BadRequestResponse("Hunter name is required");
-    }
-
-    Team team;
+  public void createTeams(Context ctx) {
+    String startedHuntId = ctx.queryParam("startedHuntId");
+    int numTeams;
     try {
-      team = teamCollection.find(eq("_id", new ObjectId(id))).first();
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestResponse("The requested team id wasn't a legal Mongo Object ID.");
+        numTeams = Integer.parseInt(ctx.queryParam("numTeams"));
+    } catch (NumberFormatException e) {
+        throw new BadRequestResponse("Invalid number of teams specified");
     }
 
-    if (team == null) {
-      throw new NotFoundResponse("The requested team was not found");
+    if (numTeams <= 0) {
+        throw new BadRequestResponse("Number of teams must be greater than 0");
     }
 
-    // Add the hunter to the team
-    team.addMember(hunterName);
+    List<Team> teams = new ArrayList<>();
+    for (int i = 1; i <= numTeams; i++) {
+        Team team = new Team();
+        team.teamName = "Team " + i;
+        team.startedHuntId = startedHuntId; // Set the startedHuntId to the team
+        teams.add(team);
+    }
 
-    // Update the team in the database
-    teamCollection.findOneAndReplace(eq("_id", team._id), team);
-
-    ctx.status(HttpStatus.OK);
+    teamCollection.insertMany(teams);
+    ctx.status(HttpStatus.CREATED);
+    ctx.json(Map.of("numTeamsCreated", numTeams));
   }
 
-  public void leaveTeam(Context ctx) {
-    String id = ctx.pathParam("id");
-    String hunterName = ctx.queryParam("name");
-
-    if (hunterName == null || hunterName.isEmpty()) {
-      throw new BadRequestResponse("Hunter name is required");
-    }
-
-    Team team;
-    try {
-      team = teamCollection.find(eq("_id", new ObjectId(id))).first();
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestResponse("The requested team id wasn't a legal Mongo Object ID.");
-    }
-
-    if (team == null) {
-      throw new NotFoundResponse("The requested team was not found");
-    }
-
-    // Remove the hunter from the team
-    team.removeMember(hunterName);
-
-    // Update the team in the database
-    teamCollection.findOneAndReplace(eq("_id", team._id), team);
-
-    ctx.status(HttpStatus.OK);
+  public List<Team> getAllStartedHuntTeams(String startedHuntId) {
+    return teamCollection.find(eq("startedHuntId", startedHuntId)).into(new ArrayList<>());
   }
 
   @Override
   public void addRoutes(Javalin server) {
     server.post(API_TEAMS, this::createTeam);
     server.get(API_TEAMS, this::getTeams);
-    server.get(API_NICKNAME, this::getTeam);
-    server.delete(API_NICKNAME, this::deleteTeam);
-    server.post(API_NICKNAME + "/join", this::joinTeam);
-    server.post(API_NICKNAME + "/leave", this::leaveTeam);
+    server.get(API_TEAM, this::getTeam);
+    server.delete(API_TEAM, this::deleteTeam);
+    server.post(API_CREATE_TEAMS, this::createTeams);
+    server.get("/api/startedHunts/{startedHuntId}/teams", ctx -> {
+      String startedHuntId = ctx.pathParam("startedHuntId");
+      List<Team> teams = getAllStartedHuntTeams(startedHuntId);
+      ctx.json(teams);
+    });
   }
 
 }

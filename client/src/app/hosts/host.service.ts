@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Hunt } from '../hunts/hunt';
 import { Task } from '../hunts/task';
 import { CompleteHunt } from '../hunts/completeHunt';
 import { StartedHunt } from '../startHunt/startedHunt';
-import { EndedHunt } from '../endedHunts/endedHunt';
+import { Team } from '../hunters/join-hunt/team';
+import { Submission } from '../hunters/join-hunt/Submission';
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +22,7 @@ export class HostService {
   readonly endedHuntsUrl: string = `${environment.apiUrl}endedHunts`;
   readonly endedHuntUrl: string = `${environment.apiUrl}startedHunt`;
 
-  constructor(private httpClient: HttpClient){
+  constructor(private httpClient: HttpClient) {
   }
 
   getHunts(hostId: string): Observable<Hunt[]> {
@@ -34,11 +35,11 @@ export class HostService {
 
   addHunt(newHunt: Partial<Hunt>): Observable<string> {
     newHunt.hostId = "588945f57546a2daea44de7c";
-    return this.httpClient.post<{id: string}>(this.huntUrl, newHunt).pipe(map(result => result.id));
+    return this.httpClient.post<{ id: string }>(this.huntUrl, newHunt).pipe(map(result => result.id));
   }
 
   addTask(newTask: Partial<Task>): Observable<string> {
-    return this.httpClient.post<{id: string}>(this.taskUrl, newTask).pipe(map(res => res.id));
+    return this.httpClient.post<{ id: string }>(this.taskUrl, newTask).pipe(map(res => res.id));
   }
 
   deleteHunt(id: string): Observable<void> {
@@ -72,20 +73,63 @@ export class HostService {
     return this.httpClient.delete<void>(`${this.endedHuntsUrl}/${id}`);
   }
 
-  submitPhoto(startedHuntId: string, taskId: string, photo: File): Observable<string> {
+  submitPhoto(startedHuntId: string, taskId: string, photo: File, teamId: string): Observable<string> {
     const formData = new FormData();
     formData.append('photo', photo);
-    return this.httpClient.post<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo`, formData).pipe(map(result => result.id));
+    return this.httpClient.post<{ id: string }>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${teamId}`, formData).pipe(map(result => result.id));
   }
 
-  replacePhoto(startedHuntId: string, taskId: string, photoPath: string, photo: File): Observable<string> {
+  replacePhoto(startedHuntId: string, taskId: string, photoPath: string, photo: File, teamId: string): Observable<string> {
     const formData = new FormData();
     formData.append('photo', photo);
-    return this.httpClient.put<{id: string}>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${photoPath}`, formData).pipe(map(result => result.id));
+    return this.httpClient.put<{ id: string }>(`${this.endedHuntUrl}/${startedHuntId}/tasks/${taskId}/photo/${photoPath}/${teamId}`, formData).pipe(map(result => result.id));
   }
 
-  getEndedHuntById(id: string): Observable<EndedHunt> {
-    return this.httpClient.get<EndedHunt>(`${this.endedHuntsUrl}/${id}`);
+  getEndedHuntById(id: string): Observable<StartedHunt> {
+    return this.httpClient.get<StartedHunt>(`${this.endedHuntsUrl}/${id}`);
   }
 
+  // This takes in a integer from the host and adds that amount of empty teams to the startedHunt
+  addTeams(startedHuntId: string, numTeams: number): Observable<void> {
+    return this.httpClient.post<void>(`/api/teams/create?startedHuntId=${startedHuntId}&numTeams=${numTeams}`, null);
+  }
+
+  getTeams(startedHuntId: string): Observable<Team[]> {
+    return this.httpClient.get<Team[]>(`/api/startedHunts/${startedHuntId}/teams`);
+  }
+
+  getTeamSubmissions(teamId: string): Observable<Submission[]> {
+    return this.httpClient.get<Submission[]>(`/api/submissions/team/${teamId}`);
+  }
+
+  getPhoto(submissionId: string): Observable<string> {
+    console.log(`Client: Sending request to get photo for submissionId: ${submissionId}`);
+    return this.httpClient.get(`/api/submissions/${submissionId}/photo`, { responseType: 'text' })
+      .pipe(
+        tap(() => console.log(`Client: Received photo for submissionId: ${submissionId}`)),
+        catchError(error => {
+          console.error(`Client: Error getting photo for submissionId: ${submissionId}`, error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  convertToImageSrc(base64: string): string {
+    if (base64.startsWith('data:image/png;base64,')) {
+      return base64;
+    }
+    return 'data:image/base64,' + base64;
+  }
+
+  getSubmissionsByStartedHunt(startedHuntId: string): Observable<Submission[]> {
+    return this.httpClient.get<Submission[]>(`/api/submissions/startedHunt/${startedHuntId}`);
+  }
+
+  getAllStartedHuntTeams(startedHuntId: string): Observable<Team[]> {
+    return this.httpClient.get<Team[]>(`/api/startedHunts/${startedHuntId}/teams`);
+  }
+
+  getStartedHuntById(id: string): Observable<StartedHunt> {
+    return this.httpClient.get<StartedHunt>(`/api/startedHunt/${id}`);
+  }
 }

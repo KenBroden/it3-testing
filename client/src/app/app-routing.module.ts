@@ -9,6 +9,8 @@ import { AddHuntComponent } from './hunts/addHunt/add-hunt.component';
 import { JoinHuntComponent } from './hunters/join-hunt/join-hunt.component';
 import { StartHuntComponent } from './startHunt/start-hunt.component';
 import { EndedHuntDetailsComponent } from './endedHunts/endedHuntDetails/ended-hunt.details.component';
+import { AddTeamsComponent } from './startHunt/add-teams.component';
+import { SelectTeamComponent } from './hunters/join-hunt/select-team/select-team.component';
 
 // Note that the 'users/new' route needs to come before 'users/:id'.
 // If 'users/:id' came first, it would accidentally catch requests to
@@ -19,10 +21,12 @@ const routes: Routes = [
   {path: 'hunts/new', component: AddHuntComponent, title: 'Add Hunt'},
   {path: 'hunts/:id', component: HuntProfileComponent, title: 'Hunts Profile'},
   {path: 'hunts', component: HuntCardComponent, title: 'Hunts'},
-  {path: 'hunters', component: JoinHuntComponent, title: 'Join Hunt'},
-  {path: 'hunter-view/:accessCode', component: HunterViewComponent},
+  { path: 'hunters', component: JoinHuntComponent },
+  { path: 'hunter-view/:accessCode/teams', component: SelectTeamComponent },
+  { path: 'hunter-view/:accessCode/teams/:teamId', component: HunterViewComponent },
   {path: 'startedHunts/:accessCode', component: StartHuntComponent, title: 'Started Hunt'},
   {path: 'endedHunts/:id', component: EndedHuntDetailsComponent, title: 'Ended Hunt Details'},
+  {path: 'startedHunts/:accessCode/addTeams', component: AddTeamsComponent, title: 'Add Teams'},
 ];
 
 @NgModule({
