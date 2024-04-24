@@ -5,6 +5,7 @@ import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.http.NotFoundResponse;
+import io.javalin.http.UploadedFile;
 import io.javalin.websocket.WsContext;
 import umm3601.Controller;
 
@@ -399,34 +400,46 @@ public class HostController implements Controller {
 
   public String uploadPhoto(Context ctx) {
     System.out.println("uploadPhoto method called");
-    try {
-      var uploadedFile = ctx.uploadedFile("photo");
-      if (uploadedFile != null) {
-        try (InputStream in = uploadedFile.content()) {
+    UploadedFile uploadedFile = getUploadedFile(ctx);
+    String id = handleUploadedFile(uploadedFile);
+    ctx.status(HttpStatus.OK); // Set the status to OK after successfully processing the file
+    return id;
+}
 
-          String id = UUID.randomUUID().toString();
-
-          String extension = getFileExtension(uploadedFile.filename());
-          File file = Path.of("photos", id + "." + extension).toFile();
-          System.err.println("The path was " + file.toPath());
-
-          Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-          ctx.status(HttpStatus.OK);
-
-          createAndSendEvent("photo-uploaded", id + "." + extension);
-
-          return id + "." + extension;
-        } catch (IOException e) {
-          System.err.println("Error copying the uploaded file: " + e);
-          throw new BadRequestResponse("Error handling the uploaded file: " + e.getMessage());
-        }
-      } else {
-        throw new BadRequestResponse("No photo uploaded");
-      }
-    } catch (Exception e) {
+public UploadedFile getUploadedFile(Context ctx) {
+  try {
+      UploadedFile uploadedFile = ctx.uploadedFile("photo");
+      // Try to access the content of the uploaded file to catch any RuntimeException
+      @SuppressWarnings("unused")
+      InputStream content = uploadedFile.content();
+      return uploadedFile;
+  } catch (Exception e) {
       throw new BadRequestResponse("Unexpected error during photo upload: " + e.getMessage());
-    }
   }
+}
+
+public String handleUploadedFile(UploadedFile uploadedFile) {
+    if (uploadedFile != null) {
+        return processUploadedFile(uploadedFile);
+    } else {
+        throw new BadRequestResponse("No photo uploaded");
+    }
+}
+
+public String processUploadedFile(UploadedFile uploadedFile) {
+    try (InputStream in = uploadedFile.content()) {
+        String id = UUID.randomUUID().toString();
+        String extension = getFileExtension(uploadedFile.filename());
+        File file = Path.of("photos", id + "." + extension).toFile();
+        System.err.println("The path was " + file.toPath());
+        Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        createAndSendEvent("photo-uploaded", id + "." + extension);
+        return id + "." + extension;
+    } catch (IOException e) {
+        System.err.println("Error copying the uploaded file: " + e);
+        throw new BadRequestResponse("Error handling the uploaded file: " + e.getMessage());
+    }
+}
 
   public Submission createSubmission(Context ctx, String taskId, String teamId, String photoPath) {
     Submission newSubmission = new Submission();
