@@ -2,11 +2,9 @@ package umm3601.team;
 
 import static com.mongodb.client.model.Filters.eq;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -51,7 +49,6 @@ import io.javalin.http.Context;
 import umm3601.host.CompleteHunt;
 import umm3601.host.EndedHunt;
 import umm3601.host.Host;
-import umm3601.host.HostController;
 import umm3601.host.Hunt;
 import umm3601.host.StartedHunt;
 import umm3601.host.Task;
@@ -61,7 +58,6 @@ import umm3601.host.TeamController;
 @SuppressWarnings({ "MagicNumber" })
 public class TeamControllerSpec {
   private TeamController teamController;
-  private HostController hostController;
   private ObjectId frysId;
   private ObjectId huntId;
   private ObjectId taskId;
@@ -102,6 +98,9 @@ public class TeamControllerSpec {
   @Captor
   private ArgumentCaptor<Team> teamCaptor;
 
+  @Captor
+  private ArgumentCaptor<ArrayList<Team>> teamArrayListCaptor;
+
   @BeforeAll
   static void setupAll() {
     String mongoAddr = System.getenv().getOrDefault("MONGO_ADDR", "localhost");
@@ -127,6 +126,7 @@ public class TeamControllerSpec {
     setupHunts();
     setupTasks();
     setupTeams();
+    setupSubmissions();
     setupStartedHunts();
 
     teamController = new TeamController(db);
@@ -244,25 +244,58 @@ public class TeamControllerSpec {
     testTeams = new ArrayList<>();
     testTeams.add(
         new Document()
-            .append("teamName", "Team 1")
-            .append("teamMembers", new ArrayList<String>()));
+            .append("teamName", "Team 1"));
     testTeams.add(
         new Document()
-            .append("teamName", "Team 2")
-            .append("teamMembers", new ArrayList<String>()));
+            .append("teamName", "Team 2"));
     testTeams.add(
         new Document()
-            .append("teamName", "Team 3")
-            .append("teamMembers", new ArrayList<String>()));
+            .append("teamName", "Team 3"));
 
     teamId = new ObjectId();
     Document team = new Document()
         .append("_id", teamId)
-        .append("teamName", "Team 4")
-        .append("teamMembers", new ArrayList<String>());
+        .append("teamName", "Team 4");
 
     teamDocuments.insertMany(testTeams);
     teamDocuments.insertOne(team);
+  }
+
+  private List<Document> testSubmissions;
+
+  protected void setupSubmissions() {
+    MongoCollection<Document> submissionDocuments = db.getCollection("submissions");
+    submissionDocuments.drop();
+    testSubmissions = new ArrayList<>();
+    testSubmissions.add(
+        new Document()
+            .append("taskId", "Task 1")
+            .append("teamId", "Team 1")
+            .append("photoPath", "Path 1")
+            .append("submitTime", new Date()));
+    testSubmissions.add(
+        new Document()
+            .append("taskId", "Task 2")
+            .append("teamId", "Team 2")
+            .append("photoPath", "Path 2")
+            .append("submitTime", new Date()));
+    testSubmissions.add(
+        new Document()
+            .append("taskId", "Task 3")
+            .append("teamId", "Team 3")
+            .append("photoPath", "Path 3")
+            .append("submitTime", new Date()));
+
+    ObjectId submissionId = new ObjectId();
+    Document submission = new Document()
+        .append("_id", submissionId)
+        .append("taskId", "Task 4")
+        .append("teamId", "Team 4")
+        .append("photoPath", "Path 4")
+        .append("submitTime", new Date());
+
+    submissionDocuments.insertMany(testSubmissions);
+    submissionDocuments.insertOne(submission);
   }
 
   protected void setupStartedHunts() {
@@ -280,7 +313,7 @@ public class TeamControllerSpec {
                 .append("tasks", testTasks.subList(0, 2)))
             .append("status", true)
             .append("endDate", null)
-            .append("teams", testTeams.subList(0, 2)));
+            .append("submissionIds", testSubmissions.subList(0, 2)));
 
     startedHunts.add(
         new Document()
@@ -290,7 +323,7 @@ public class TeamControllerSpec {
                 .append("tasks", testTasks.subList(2, 3)))
             .append("status", false)
             .append("endDate", date)
-            .append("teams", testTeams.subList(2, 3)));
+            .append("teams", testSubmissions.subList(2, 3)));
 
     startedHunts.add(
         new Document()
@@ -300,7 +333,7 @@ public class TeamControllerSpec {
                 .append("tasks", testTasks.subList(0, 3)))
             .append("status", true)
             .append("endDate", null)
-            .append("teams", testTeams.subList(0, 3)));
+            .append("teams", testSubmissions.subList(0, 3)));
 
     startedHuntId = new ObjectId();
     Document startedHunt = new Document()
@@ -311,13 +344,12 @@ public class TeamControllerSpec {
             .append("tasks", testTasks.subList(0, 3)))
         .append("status", true)
         .append("endDate", null)
-        .append("teams", testTeams.subList(0, 3));
+        .append("teams", testSubmissions.subList(0, 3));
 
     startedHuntsDocuments.insertMany(startedHunts);
     startedHuntsDocuments.insertOne(startedHunt);
 
     teamController = new TeamController(db);
-    hostController = new HostController(db);
   }
 
   @Test
@@ -335,7 +367,6 @@ public class TeamControllerSpec {
     Team team = teamController.getTeam(ctx);
 
     assertEquals("Team 4", team.teamName);
-    assertEquals(0, team.teamMembers.size());
   }
 
   @Test
@@ -389,7 +420,6 @@ public class TeamControllerSpec {
     String testNewTeam = """
         {
           "teamName": null,
-          "teamMembers": ["fry", "barb", "tom"]
         }
         """;
     when(ctx.bodyValidator(Team.class))
@@ -403,7 +433,6 @@ public class TeamControllerSpec {
     String testNewTeam = """
         {
           "teamName": "",
-          "teamMembers": ["fry", "barb", "tom"]
         }
         """;
     when(ctx.bodyValidator(Team.class))
@@ -455,258 +484,6 @@ public class TeamControllerSpec {
 
     assertEquals("Was unable to delete team with id: " + id.toHexString()
         + "; perhaps its an illegal id, or the id is not in the database.", exception.getMessage());
-  }
-
-  @Test
-  void joinTeam() throws IOException {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    teamController.joinTeam(ctx);
-    verify(ctx).status(HttpStatus.OK);
-
-    Document updatedTeam = db.getCollection("teams")
-        .find(eq("_id", new ObjectId(id))).first();
-
-    assertNotNull(updatedTeam);
-    assertEquals("Team 4", updatedTeam.getString("teamName"));
-    assertEquals(1, updatedTeam.getList("teamMembers", String.class).size());
-    assertTrue(updatedTeam.getList("teamMembers", String.class).contains("fry"));
-  }
-
-  @Test
-  void joinTeamWithBadId() throws IOException {
-    when(ctx.pathParam("id")).thenReturn("badId");
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    Throwable exception = assertThrows(BadRequestResponse.class, () -> {
-      teamController.joinTeam(ctx);
-    });
-
-    assertEquals("The requested team id wasn't a legal Mongo Object ID.", exception.getMessage());
-  }
-
-  @Test
-  void joinTeamWithNonExistentId() throws IOException {
-    ObjectId id = new ObjectId();
-    when(ctx.pathParam("id")).thenReturn(id.toHexString());
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    Throwable exception = assertThrows(NotFoundResponse.class, () -> {
-      teamController.joinTeam(ctx);
-    });
-
-    assertEquals("The requested team was not found", exception.getMessage());
-  }
-
-  @Test
-  void joinTeamWithNullName() {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn(null);
-
-    assertThrows(BadRequestResponse.class, () -> teamController.joinTeam(ctx));
-  }
-
-  @Test
-  void joinTeamWithEmptyName() {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn("");
-
-    assertThrows(BadRequestResponse.class, () -> teamController.joinTeam(ctx));
-  }
-
-  @Test
-  void leaveTeam() throws IOException {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    teamController.leaveTeam(ctx);
-    verify(ctx).status(HttpStatus.OK);
-
-    Document updatedTeam = db.getCollection("teams")
-        .find(eq("_id", new ObjectId(id))).first();
-
-    assertNotNull(updatedTeam);
-    assertEquals("Team 4", updatedTeam.getString("teamName"));
-    assertEquals(0, updatedTeam.getList("teamMembers", String.class).size());
-  }
-
-  @Test
-  void leaveTeamWithBadId() throws IOException {
-    when(ctx.pathParam("id")).thenReturn("badId");
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    Throwable exception = assertThrows(BadRequestResponse.class, () -> {
-      teamController.leaveTeam(ctx);
-    });
-
-    assertEquals("The requested team id wasn't a legal Mongo Object ID.", exception.getMessage());
-  }
-
-  @Test
-  void leaveTeamWithNonExistentId() throws IOException {
-    ObjectId id = new ObjectId();
-    when(ctx.pathParam("id")).thenReturn(id.toHexString());
-    when(ctx.queryParam("name")).thenReturn("fry");
-
-    Throwable exception = assertThrows(NotFoundResponse.class, () -> {
-      teamController.leaveTeam(ctx);
-    });
-
-    assertEquals("The requested team was not found", exception.getMessage());
-  }
-
-  @Test
-  void leaveTeamWithNullName() {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn(null);
-
-    assertThrows(BadRequestResponse.class, () -> teamController.leaveTeam(ctx));
-  }
-
-  @Test
-  void leaveTeamWithEmptyName() {
-    String id = teamId.toHexString();
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.queryParam("name")).thenReturn("");
-
-    assertThrows(BadRequestResponse.class, () -> teamController.leaveTeam(ctx));
-  }
-
-    // Test if teams are added to the started hunt
-  // The method should retrieve a number of teams from the client side host and
-  // add them to the started hunt
-  @SuppressWarnings("unchecked")
-  @Test
-  void addTeamsToStartedHunt() throws IOException {
-    // Prepare the context and the number of teams to add
-    String id = startedHuntId.toHexString();
-    int numTeamsToAdd = 3;
-    when(ctx.pathParam("id")).thenReturn(id);
-    when(ctx.bodyAsClass(Integer.class)).thenReturn(numTeamsToAdd);
-
-    // Get the number of existing teams
-    Document startedHunt = db.getCollection("startedHunts").find(eq("_id", new ObjectId(id))).first();
-    int numTeamsExisting = ((List<Document>) startedHunt.get("teams")).size();
-
-    // Run the method to test
-    hostController.addTeamsToStartedHunt(ctx);
-
-    // Verify the status code
-    verify(ctx).status(HttpStatus.OK);
-
-    // Retrieve the updated started hunt from the database
-    Document updatedStartedHunt = db.getCollection("startedHunts")
-        .find(eq("_id", new ObjectId(id))).first();
-
-    // Check if the correct number of teams were added
-    List<Document> teams = (List<Document>) updatedStartedHunt.get("teams");
-    assertEquals(numTeamsExisting + numTeamsToAdd, teams.size());
-
-    // Check if the teams are empty
-    for (Document team : teams) {
-      List<String> teamMembers = (List<String>) team.get("teamMembers");
-      assertTrue(teamMembers.isEmpty());
-    }
-  }
-
-  // Test adding teams to a started hunt that can't be found
-  @Test
-  void addTeamsToStartedHuntWithBadId() throws IOException {
-    // Prepare the context with a bad id
-    when(ctx.pathParam("id")).thenReturn("badId");
-
-    // Run the method to test
-    Throwable exception = assertThrows(BadRequestResponse.class, () -> {
-      hostController.addTeamsToStartedHunt(ctx);
-    });
-
-    // Verify the error message
-    assertEquals("The requested started hunt id wasn't a legal Mongo Object ID.", exception.getMessage());
-  }
-
-  // Test removing a team from a started hunt
-  @SuppressWarnings("unchecked")
-  @Test
-  void removeTeamFromStartedHunt() throws IOException {
-      // Setup the test data
-      setupTeams();
-      setupStartedHunts();
-
-      // Prepare the context and the team id to remove
-      String id = startedHuntId.toHexString();
-      ObjectId testTeamId = new ObjectId(testTeams.get(0).get("_id").toString()); // Retrieve teamId from test data
-      when(ctx.pathParam("id")).thenReturn(id);
-      when(ctx.pathParam("teamId")).thenReturn(testTeamId.toHexString()); // Convert ObjectId to String
-
-      // Get the number of existing teams
-      Document startedHunt = db.getCollection("startedHunts").find(eq("_id", new ObjectId(id))).first();
-      int numTeamsExisting = ((List<Document>) startedHunt.get("teams")).size();
-
-      // Run the method to test
-      hostController.removeTeamFromStartedHunt(ctx);
-
-      // Verify the status code
-      verify(ctx).status(HttpStatus.OK);
-
-      // Retrieve the updated started hunt from the database
-      Document updatedStartedHunt = db.getCollection("startedHunts")
-              .find(eq("_id", new ObjectId(id))).first();
-
-      // Check if the correct number of teams were removed
-      List<Document> teams = (List<Document>) updatedStartedHunt.get("teams");
-      assertEquals(numTeamsExisting - 1, teams.size());
-
-      // Check if the correct team was removed
-      boolean teamFound = false;
-      for (Document team : teams) {
-          if (teamId.toHexString().equals(team.get("_id").toString())) { // Use teamId.toHexString()
-              teamFound = true;
-          }
-      }
-      assertFalse(teamFound);
-  }
-
-  // Test removing a team from a started hunt that can't be found
-  @Test
-  void removeTeamFromStartedHuntWithBadId() throws IOException {
-      // Prepare the context with a bad id
-      when(ctx.pathParam("id")).thenReturn("badId");
-
-      // Run the method to test
-      Throwable exception = assertThrows(BadRequestResponse.class, () -> {
-          hostController.removeTeamFromStartedHunt(ctx);
-      });
-
-      // Verify the error message
-      assertEquals("The requested started hunt id wasn't a legal Mongo Object ID.", exception.getMessage());
-  }
-
-  // Test removing a team that can't be found in the started hunt
-  @Test
-  void removeTeamFromStartedHuntWithNonExistentId() throws IOException {
-      // Setup the test data
-      setupTeams();
-      setupStartedHunts();
-
-      // Prepare the context with a non-existent team id
-      String id = startedHuntId.toHexString();
-      ObjectId testTeamId = new ObjectId(); // Create a new ObjectId
-      when(ctx.pathParam("id")).thenReturn(id);
-      when(ctx.pathParam("teamId")).thenReturn(testTeamId.toHexString()); // Convert ObjectId to String
-
-      // Run the method to test
-      Throwable exception = assertThrows(NotFoundResponse.class, () -> {
-          hostController.removeTeamFromStartedHunt(ctx);
-      });
-
-      // Verify the error message
-      assertEquals("Team with ID " + testTeamId.toHexString() + " does not exist", exception.getMessage());
   }
 
 }

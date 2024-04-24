@@ -84,7 +84,6 @@ export class HunterViewComponent implements OnInit, OnDestroy {
         task.photos.push(submission._id);
         this.hostService.getPhoto(submission._id).subscribe({
           next: (photoBase64: string) => {
-            console.log(photoBase64);
             this.imageUrls[task._id] = this.hostService.convertToImageSrc(photoBase64);
           },
           error: (_err) => {
@@ -112,6 +111,14 @@ export class HunterViewComponent implements OnInit, OnDestroy {
       reader.readAsDataURL(file);
       reader.onload = (event: ProgressEvent<FileReader>) => {
         this.imageUrls[task._id] = event.target.result.toString();
+
+              // Free up memory after loading the file
+      const objectURL = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function() {
+        URL.revokeObjectURL(objectURL);
+      };
+      img.src = objectURL;
       };
 
       if (file) {

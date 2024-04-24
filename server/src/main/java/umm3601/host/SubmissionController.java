@@ -25,8 +25,6 @@ import umm3601.Controller;
 public class SubmissionController implements Controller{
 
   private static final String API_SUBMISSION = "/api/submissions/{id}";
-  //private static final String API_SUBMISSIONS = "/api/submissions";
-  //private static final String API_CREATE_SUBMISSIONS = "/api/submissions/create";
   private static final String API_SUBMISSIONS_BY_TEAM = "/api/submissions/team/{teamId}";
   private static final String API_SUBMISSIONS_BY_TASK = "/api/submissions/task/{taskId}";
   private static final String API_SUBMISSIONS_BY_TEAM_AND_TASK = "/api/submissions/team/{teamId}/task/{taskId}";
